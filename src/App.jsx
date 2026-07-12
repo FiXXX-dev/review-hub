@@ -2,7 +2,8 @@ import React from 'react'
 import VenuePage from './VenuePage.jsx'
 
 function getSlug() {
-  const match = window.location.pathname.match(/^\/v\/([\w-]+)\/?$/)
+  // не привязываемся к началу пути: на GitHub Pages сайт живёт под /review-hub/
+  const match = window.location.pathname.match(/\/v\/([\w-]+)\/?$/)
   return match ? match[1] : null
 }
 
