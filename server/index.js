@@ -19,6 +19,15 @@ const PLATFORM_NAMES = {
   '2gis': '2ГИС',
 }
 
+const SERVICE_LABELS = {
+  cleaning: 'Уборка',
+  towels: 'Полотенца / бельё',
+  water: 'Вода',
+  late_checkout: 'Поздний выезд',
+  broken: 'Что-то сломалось',
+  taxi: 'Вызвать такси',
+}
+
 const app = express()
 app.use(express.json())
 
@@ -36,15 +45,22 @@ async function sendTelegram(chatId, text) {
 
 app.post('/api/notify', async (req, res) => {
   try {
-    const { venue_id, rating_id, stars, message, contact, platform, type, name, phone, service, preferred_time } =
-      req.body || {}
+    const {
+      venue_id, rating_id, stars, message, contact, platform, type,
+      name, phone, service, preferred_time, room, request_type, comment,
+    } = req.body || {}
 
     const isAppointment = type === 'appointment'
+    const isService = type === 'service'
     const starsNum = Number(stars)
     if (!venue_id) {
       return res.status(400).json({ error: 'venue_id is required' })
     }
-    if (isAppointment) {
+    if (isService) {
+      if (typeof room !== 'string' || !room.trim() || !SERVICE_LABELS[request_type]) {
+        return res.status(400).json({ error: 'room and known request_type are required for service' })
+      }
+    } else if (isAppointment) {
       if (typeof name !== 'string' || !name.trim() || typeof phone !== 'string' || !phone.trim()) {
         return res.status(400).json({ error: 'name and phone are required for appointments' })
       }
@@ -77,15 +93,20 @@ app.post('/api/notify', async (req, res) => {
       await supabase.from('ratings').update({ redirected_to: platform }).eq('id', rating_id)
     }
 
-    const text = isAppointment
-      ? `📅 Новая запись — ${venue.name}\n\nИмя: ${name.trim().slice(0, 200)}\nТелефон: ${phone.trim().slice(0, 100)}\nУслуга: ${
-          (service && String(service).trim().slice(0, 200)) || 'не указана'
-        }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}`
-      : platform
-        ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
-        : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${message.trim().slice(0, 2000)}"\n\nКонтакт: ${
-            (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
-          }`
+    const roomNote = room && String(room).trim() ? `\nНомер: ${String(room).trim().slice(0, 20)}` : ''
+    const text = isService
+      ? `🛎 Номер ${String(room).trim().slice(0, 20)} — ${SERVICE_LABELS[request_type]}${
+          comment && String(comment).trim() ? `, ${String(comment).trim().slice(0, 500)}` : ''
+        }`
+      : isAppointment
+        ? `📅 Новая запись — ${venue.name}\n\nИмя: ${name.trim().slice(0, 200)}\nТелефон: ${phone.trim().slice(0, 100)}\nУслуга: ${
+            (service && String(service).trim().slice(0, 200)) || 'не указана'
+          }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}${roomNote}`
+        : platform
+          ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
+          : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${message.trim().slice(0, 2000)}"\n\nКонтакт: ${
+              (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
+            }${roomNote}`
 
     // нет chat_id — данные уже в базе, просто выходим без ошибки
     if (venue.owner_telegram_chat_id) {

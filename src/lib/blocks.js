@@ -11,6 +11,8 @@ export const BLOCK_DEFS = {
   doctors: { label_ru: 'Наши врачи', label_uz: 'Shifokorlarimiz', icon: '🩺' },
   appointment: { label_ru: 'Записаться', label_uz: 'Yozilish', icon: '📅' },
   services: { label_ru: 'Услуги', label_uz: 'Xizmatlar', icon: '🛎️' },
+  service: { label_ru: 'Обслуживание номера', label_uz: 'Xona xizmati', icon: '🛎️' },
+  info: { label_ru: 'Информация', label_uz: "Ma'lumot", icon: 'ℹ️' },
   taxi: { label_ru: 'Вызвать такси', label_uz: 'Taksi chaqirish', icon: '🚕' },
   catalog: { label_ru: 'Каталог', label_uz: 'Katalog', icon: '🛍️' },
   masters: { label_ru: 'Наши мастера', label_uz: 'Ustalarimiz', icon: '💇' },
@@ -18,7 +20,19 @@ export const BLOCK_DEFS = {
 }
 
 // Блоки-ссылки: иконка + подпись + url (url лежит в venues.block_links)
-export const LINK_TYPES = ['menu', 'price', 'catalog', 'doctors', 'masters', 'services', 'taxi']
+export const LINK_TYPES = ['menu', 'price', 'catalog', 'doctors', 'masters', 'services', 'taxi', 'info']
+
+// Запросы обслуживания номера (блок service). Ключ хранится в
+// service_requests.request_type; venues.service_options (jsonb-массив
+// ключей) ограничивает список — null = включены все.
+export const SERVICE_OPTIONS = [
+  { key: 'cleaning', label_ru: 'Уборка' },
+  { key: 'towels', label_ru: 'Полотенца / бельё' },
+  { key: 'water', label_ru: 'Вода' },
+  { key: 'late_checkout', label_ru: 'Поздний выезд' },
+  { key: 'broken', label_ru: 'Что-то сломалось', comment: true },
+  { key: 'taxi', label_ru: 'Вызвать такси' },
+]
 
 // Поведение до пресетов: если у заведения нет ни пресета, ни enabled_blocks
 export const LEGACY_BLOCKS = ['rating', 'menu', 'wifi', 'instagram', 'telegram']
@@ -31,7 +45,9 @@ export function blockUrl(venue, type) {
 }
 
 // Итоговый упорядоченный список блоков: {type, label, icon}
-// enabled_blocks задаёт порядок и состав; пресет даёт подписи/иконки; rating всегда первый.
+// enabled_blocks задаёт состав и порядок (иначе — порядок пресета);
+// rating обязателен, но его позиция управляется пресетом (у отелей
+// первым идёт wifi).
 export function resolveBlocks(venue) {
   const presetBlocks = venue.preset?.blocks ?? []
   const defs = { ...BLOCK_DEFS }
@@ -41,18 +57,28 @@ export function resolveBlocks(venue) {
 
   let types
   if (venue.enabled_blocks?.length) {
-    types = venue.enabled_blocks
+    types = [...venue.enabled_blocks]
   } else if (presetBlocks.length) {
     types = presetBlocks.map((b) => b.type)
   } else {
-    types = LEGACY_BLOCKS
+    types = [...LEGACY_BLOCKS]
   }
 
-  const ordered = types.includes('rating')
-    ? ['rating', ...types.filter((t) => t !== 'rating')]
-    : [...types]
+  if (!types.includes('rating')) types.unshift('rating')
 
-  return ordered
-    .filter((t, i) => defs[t] && ordered.indexOf(t) === i)
+  return types
+    .filter((t, i) => defs[t] && types.indexOf(t) === i)
     .map((t) => ({ type: t, label: defs[t].label_ru, icon: defs[t].icon }))
+}
+
+// Порядок платформ отзывов: venues.rating_platform_order (jsonb-массив
+// ключей), по умолчанию яндекс → google → 2гис.
+export function orderPlatforms(platforms, venue) {
+  const order = Array.isArray(venue.rating_platform_order) ? venue.rating_platform_order : null
+  if (!order?.length) return platforms
+  return [...platforms].sort((a, b) => {
+    const ia = order.indexOf(a.key)
+    const ib = order.indexOf(b.key)
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+  })
 }

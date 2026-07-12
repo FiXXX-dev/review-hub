@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase.js'
-import { BLOCK_DEFS, LINK_TYPES } from './lib/blocks.js'
+import { BLOCK_DEFS, LINK_TYPES, SERVICE_OPTIONS } from './lib/blocks.js'
 
 const EMPTY_VENUE = {
   slug: '',
@@ -23,6 +23,8 @@ const EMPTY_VENUE = {
   preset_key: '',
   enabled_blocks: null,
   block_links: {},
+  service_options: null,
+  rating_platform_order: null,
 }
 
 const FIELDS = [
@@ -47,8 +49,12 @@ function venueToForm(v) {
     const val = v?.[k]
     if (val !== undefined && val !== null) form[k] = val
   }
-  // enabled_blocks: строго массив или null (не пустая строка!)
+  // массивы/объекты — строго нужного типа или null (не пустая строка!)
   form.enabled_blocks = Array.isArray(v?.enabled_blocks) ? v.enabled_blocks : null
+  form.service_options = Array.isArray(v?.service_options) ? v.service_options : null
+  form.rating_platform_order = Array.isArray(v?.rating_platform_order)
+    ? v.rating_platform_order
+    : null
   form.block_links =
     v?.block_links && typeof v.block_links === 'object' ? { ...v.block_links } : {}
   // menu_url — поле до block_links; показываем его как ссылку блока menu
@@ -202,6 +208,7 @@ function VenueEditor({ venue, presets, onBack }) {
   const [stats, setStats] = useState(null)
   const [feedback, setFeedback] = useState([])
   const [appointments, setAppointments] = useState([])
+  const [serviceRequests, setServiceRequests] = useState([])
 
   const isNew = !venue
   const preset = presets.find((p) => p.key === form.preset_key)
@@ -209,7 +216,7 @@ function VenueEditor({ venue, presets, onBack }) {
   useEffect(() => {
     if (isNew) return
     async function loadStats() {
-      const [scans, ratings, fb, appts] = await Promise.all([
+      const [scans, ratings, fb, appts, srv] = await Promise.all([
         supabase.from('scans').select('*', { count: 'exact', head: true }).eq('venue_id', venue.id),
         supabase.from('ratings').select('stars, redirected_to').eq('venue_id', venue.id),
         supabase
@@ -224,6 +231,12 @@ function VenueEditor({ venue, presets, onBack }) {
           .eq('venue_id', venue.id)
           .order('created_at', { ascending: false })
           .limit(30),
+        supabase
+          .from('service_requests')
+          .select('*')
+          .eq('venue_id', venue.id)
+          .order('created_at', { ascending: false })
+          .limit(30),
       ])
       const byStars = [0, 0, 0, 0, 0]
       let redirected = 0
@@ -234,6 +247,7 @@ function VenueEditor({ venue, presets, onBack }) {
       setStats({ scans: scans.count ?? 0, total: (ratings.data ?? []).length, byStars, redirected })
       setFeedback(fb.data ?? [])
       setAppointments(appts.data ?? [])
+      setServiceRequests(srv.data ?? [])
     }
     loadStats()
   }, [venue, isNew])
@@ -271,11 +285,21 @@ function VenueEditor({ venue, presets, onBack }) {
       preset_key: key,
       // состав блоков подставляем из пресета, дальше можно редактировать
       enabled_blocks: p ? p.blocks.map((b) => b.type) : f.enabled_blocks,
+      // у отелей Google первым — гости в основном туристы
+      rating_platform_order: key === 'hotel' ? ['google', 'yandex', '2gis'] : f.rating_platform_order,
       accent_color:
         p?.default_theme && (isNew || f.accent_color === EMPTY_VENUE.accent_color)
           ? p.default_theme
           : f.accent_color,
     }))
+  }
+
+  function toggleServiceOption(key) {
+    const all = SERVICE_OPTIONS.map((o) => o.key)
+    const current = form.service_options ?? all
+    const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key]
+    // все включены = null (дефолт)
+    set('service_options', next.length === all.length ? null : next)
   }
 
   function setLink(type, url) {
@@ -375,6 +399,23 @@ function VenueEditor({ venue, presets, onBack }) {
               })}
             </div>
           </div>
+
+          {enabled.includes('service') && (
+            <div className="admin-field">
+              <span>Запросы в блоке «Обслуживание номера»</span>
+              <div className="block-toggles">
+                {SERVICE_OPTIONS.map((o) => {
+                  const on = !form.service_options || form.service_options.includes(o.key)
+                  return (
+                    <label key={o.key} className={`block-toggle ${on ? 'on' : ''}`}>
+                      <input type="checkbox" checked={on} onChange={() => toggleServiceOption(o.key)} />
+                      {o.label_ru}
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {enabledLinkTypes.length > 0 && (
             <div className="admin-field">
@@ -487,6 +528,23 @@ function VenueEditor({ venue, presets, onBack }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {!isNew && serviceRequests.length > 0 && (
+          <div className="card admin-stats">
+            <h2 className="admin-subtitle">Заявки в номер</h2>
+            {serviceRequests.map((s) => (
+              <div key={s.id} className="feedback-item">
+                <div className="feedback-meta">
+                  {new Date(s.created_at).toLocaleString('ru-RU')} · номер {s.room}
+                </div>
+                <div className="feedback-text">
+                  {SERVICE_OPTIONS.find((o) => o.key === s.request_type)?.label_ru || s.request_type}
+                  {s.comment ? ` — ${s.comment}` : ''}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

@@ -1,6 +1,7 @@
 import React from 'react'
 import VenuePage from './VenuePage.jsx'
 import AdminPage from './AdminPage.jsx'
+import RoomLinksPage from './RoomLinksPage.jsx'
 
 function getSlug() {
   // не привязываемся к началу пути: на GitHub Pages сайт живёт под /review-hub/
@@ -9,6 +10,10 @@ function getSlug() {
 }
 
 export default function App() {
+  const roomsMatch = window.location.pathname.match(/\/admin\/rooms\/([\w-]+)\/?$/)
+  if (roomsMatch) {
+    return <RoomLinksPage slug={roomsMatch[1]} />
+  }
   if (/\/admin\/?$/.test(window.location.pathname)) {
     return <AdminPage />
   }

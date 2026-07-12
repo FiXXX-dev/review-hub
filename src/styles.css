@@ -719,3 +719,112 @@ body {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* ─── Обслуживание номера ─── */
+.service-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.service-room-input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.service-room-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.service-room-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.service-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.service-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.service-tile:active {
+  transform: scale(0.97);
+}
+
+.service-tile.active {
+  border-color: var(--accent);
+}
+
+.service-tile:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.service-icon {
+  color: var(--accent);
+}
+
+.service-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.service-comment {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.service-comment textarea {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+}
+
+/* ─── Генератор ссылок для номеров ─── */
+.rooms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.rooms-list a {
+  color: var(--accent);
+  text-decoration: none;
+}

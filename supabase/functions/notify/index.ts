@@ -11,6 +11,15 @@ const PLATFORM_NAMES: Record<string, string> = {
   '2gis': '2ГИС',
 }
 
+const SERVICE_LABELS: Record<string, string> = {
+  cleaning: 'Уборка',
+  towels: 'Полотенца / бельё',
+  water: 'Вода',
+  late_checkout: 'Поздний выезд',
+  broken: 'Что-то сломалось',
+  taxi: 'Вызвать такси',
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -28,13 +37,20 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
   try {
-    const { venue_id, stars, message, contact, platform, type, name, phone, service, preferred_time } =
-      await req.json()
+    const {
+      venue_id, stars, message, contact, platform, type,
+      name, phone, service, preferred_time, room, request_type, comment,
+    } = await req.json()
 
     const isAppointment = type === 'appointment'
+    const isService = type === 'service'
     const starsNum = Number(stars)
     if (!venue_id) return json({ error: 'venue_id is required' }, 400)
-    if (isAppointment) {
+    if (isService) {
+      if (typeof room !== 'string' || !room.trim() || !SERVICE_LABELS[request_type]) {
+        return json({ error: 'room and known request_type are required for service' }, 400)
+      }
+    } else if (isAppointment) {
       if (typeof name !== 'string' || !name.trim() || typeof phone !== 'string' || !phone.trim()) {
         return json({ error: 'name and phone are required for appointments' }, 400)
       }
@@ -65,15 +81,20 @@ Deno.serve(async (req) => {
     // нет chat_id или токена — данные уже в базе, выходим без ошибки
     if (!venue.owner_telegram_chat_id || !token) return json({ ok: true, sent: false })
 
-    const text = isAppointment
-      ? `📅 Новая запись — ${venue.name}\n\nИмя: ${String(name).trim().slice(0, 200)}\nТелефон: ${String(phone).trim().slice(0, 100)}\nУслуга: ${
-          (service && String(service).trim().slice(0, 200)) || 'не указана'
-        }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}`
-      : platform
-        ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
-        : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${String(message).trim().slice(0, 2000)}"\n\nКонтакт: ${
-            (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
-          }`
+    const roomNote = room && String(room).trim() ? `\nНомер: ${String(room).trim().slice(0, 20)}` : ''
+    const text = isService
+      ? `🛎 Номер ${String(room).trim().slice(0, 20)} — ${SERVICE_LABELS[request_type]}${
+          comment && String(comment).trim() ? `, ${String(comment).trim().slice(0, 500)}` : ''
+        }`
+      : isAppointment
+        ? `📅 Новая запись — ${venue.name}\n\nИмя: ${String(name).trim().slice(0, 200)}\nТелефон: ${String(phone).trim().slice(0, 100)}\nУслуга: ${
+            (service && String(service).trim().slice(0, 200)) || 'не указана'
+          }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}${roomNote}`
+        : platform
+          ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
+          : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${String(message).trim().slice(0, 2000)}"\n\nКонтакт: ${
+              (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
+            }${roomNote}`
 
     const tg = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',

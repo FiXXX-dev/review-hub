@@ -1,6 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { Sparkles, Bed, GlassWater, Clock, Wrench, Car } from 'lucide-react'
 import { supabase } from './lib/supabase.js'
-import { blockUrl, resolveBlocks } from './lib/blocks.js'
+import { blockUrl, resolveBlocks, orderPlatforms, SERVICE_OPTIONS } from './lib/blocks.js'
+
+const SERVICE_ICONS = {
+  cleaning: Sparkles,
+  towels: Bed,
+  water: GlassWater,
+  late_checkout: Clock,
+  broken: Wrench,
+  taxi: Car,
+}
 
 const PLATFORMS = [
   { key: 'yandex', label: 'Яндекс.Карты', urlField: 'yandex_review_url', icon: '🟡' },
@@ -41,6 +51,11 @@ export default function VenuePage({ slug }) {
   const [loading, setLoading] = useState(true)
   const [bgLoaded, setBgLoaded] = useState(false)
   const scanLogged = useRef(false)
+
+  // ?room=204 — номер комнаты (QR в номере отеля), уходит во все заявки
+  const [room, setRoom] = useState(
+    () => new URLSearchParams(window.location.search).get('room')?.trim().slice(0, 20) || ''
+  )
 
   const bgUrl = resolveAssetUrl(venue?.background_image_url)
 
@@ -149,7 +164,7 @@ export default function VenuePage({ slug }) {
       }
       continue
     }
-    const el = renderBlock(b, venue)
+    const el = renderBlock(b, venue, room, setRoom)
     if (el) rendered.push(el)
   }
 
@@ -201,15 +216,19 @@ export default function VenuePage({ slug }) {
   )
 }
 
-function renderBlock(block, venue) {
+function renderBlock(block, venue, room, setRoom) {
   const { type } = block
   switch (type) {
     case 'rating':
-      return <RatingBlock key={type} block={block} venue={venue} />
+      return <RatingBlock key={type} block={block} venue={venue} room={room} />
     case 'wifi':
       return venue.wifi_ssid ? <WifiBlock key={type} block={block} venue={venue} /> : null
     case 'appointment':
-      return <AppointmentBlock key={type} block={block} venue={venue} />
+      return <AppointmentBlock key={type} block={block} venue={venue} room={room} />
+    case 'service':
+      return (
+        <ServiceBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} />
+      )
     case 'contacts':
       return venue.address || venue.phone ? (
         <ContactsBlock key={type} block={block} venue={venue} />
@@ -233,7 +252,7 @@ function renderBlock(block, venue) {
 }
 
 /* ─── Оценка (ядро продукта) ─── */
-function RatingBlock({ block, venue }) {
+function RatingBlock({ block, venue, room }) {
   const [open, setOpen] = useState(false)
   const [stars, setStars] = useState(0)
   const [ratingId, setRatingId] = useState(null)
@@ -243,7 +262,11 @@ function RatingBlock({ block, venue }) {
   const [done, setDone] = useState(false)
   const insertPending = useRef(false)
 
-  const availablePlatforms = PLATFORMS.filter((p) => venue[p.urlField])
+  // у отелей Google первым — порядок задаёт venues.rating_platform_order
+  const availablePlatforms = orderPlatforms(
+    PLATFORMS.filter((p) => venue[p.urlField]),
+    venue
+  )
 
   async function pickStars(n) {
     setStars(n)
@@ -257,7 +280,7 @@ function RatingBlock({ block, venue }) {
     insertPending.current = true
     const { data } = await supabase
       .from('ratings')
-      .insert({ venue_id: venue.id, stars: n })
+      .insert({ venue_id: venue.id, stars: n, room: room || null })
       .select('id')
       .single()
     insertPending.current = false
@@ -283,12 +306,14 @@ function RatingBlock({ block, venue }) {
       stars,
       message: feedbackMsg.trim(),
       contact: feedbackContact.trim() || null,
+      room: room || null,
     })
     await notifyApi({
       venue_id: venue.id,
       stars,
       message: feedbackMsg.trim(),
       contact: feedbackContact.trim() || null,
+      room: room || null,
     })
     setSending(false)
     setDone(true)
@@ -417,7 +442,7 @@ function WifiBlock({ block, venue }) {
 }
 
 /* ─── Запись (имя, телефон, услуга, время) ─── */
-function AppointmentBlock({ block, venue }) {
+function AppointmentBlock({ block, venue, room }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -436,6 +461,7 @@ function AppointmentBlock({ block, venue }) {
       phone: phone.trim(),
       service: service.trim() || null,
       preferred_time: time.trim() || null,
+      room: room || null,
     }
     await supabase.from('appointments').insert(row)
     await notifyApi({ type: 'appointment', ...row })
@@ -521,6 +547,122 @@ function ContactsBlock({ block, venue }) {
               <a className="wifi-value" href={`tel:${venue.phone}`}>
                 {venue.phone}
               </a>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ─── Обслуживание номера (отели) ─── */
+function ServiceBlock({ block, venue, room, setRoom }) {
+  const [open, setOpen] = useState(false)
+  const [roomInput, setRoomInput] = useState('')
+  const [commentFor, setCommentFor] = useState(null) // ключ запроса с открытым комментарием
+  const [comment, setComment] = useState('')
+  const [sending, setSending] = useState(null) // ключ отправляемого запроса
+  const [done, setDone] = useState(false)
+
+  const enabledKeys = Array.isArray(venue.service_options) ? venue.service_options : null
+  const options = SERVICE_OPTIONS.filter((o) => !enabledKeys || enabledKeys.includes(o.key))
+  const effectiveRoom = room || roomInput.trim()
+
+  async function send(option) {
+    if (!effectiveRoom || sending) return
+    if (option.comment && commentFor !== option.key) {
+      // сначала раскрываем поле комментария, отправка — второй кнопкой
+      setCommentFor(option.key)
+      return
+    }
+    setSending(option.key)
+    if (!room && roomInput.trim()) setRoom(roomInput.trim().slice(0, 20))
+    const row = {
+      venue_id: venue.id,
+      room: effectiveRoom.slice(0, 20),
+      request_type: option.key,
+      comment: option.comment && comment.trim() ? comment.trim() : null,
+    }
+    await supabase.from('service_requests').insert(row)
+    await notifyApi({ type: 'service', ...row })
+    setSending(null)
+    setDone(true)
+  }
+
+  return (
+    <>
+      <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
+        {block.icon} {block.label}
+      </button>
+      {open && (
+        <div className="card">
+          {done ? (
+            <div className="thanks">
+              <div className="thanks-emoji">🛎️</div>
+              <p className="thanks-title">Заявка принята!</p>
+              <p className="thanks-sub">Скоро подойдём.</p>
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => {
+                  setDone(false)
+                  setCommentFor(null)
+                  setComment('')
+                }}
+              >
+                Отправить ещё запрос
+              </button>
+            </div>
+          ) : (
+            <div className="service-body">
+              {!room && (
+                <input
+                  className="service-room-input"
+                  type="text"
+                  placeholder="Номер комнаты"
+                  value={roomInput}
+                  onChange={(e) => setRoomInput(e.target.value)}
+                />
+              )}
+              {room && <p className="service-room-label">Номер {room}</p>}
+              <div className="service-grid">
+                {options.map((o) => {
+                  const Icon = SERVICE_ICONS[o.key]
+                  return (
+                    <button
+                      key={o.key}
+                      type="button"
+                      className={`service-tile ${commentFor === o.key ? 'active' : ''}`}
+                      disabled={!effectiveRoom || !!sending}
+                      onClick={() => send(o)}
+                    >
+                      {Icon && <Icon className="service-icon" size={22} strokeWidth={1.8} />}
+                      <span>{o.label_ru}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {!effectiveRoom && (
+                <p className="service-hint">Укажите номер комнаты, чтобы отправить запрос</p>
+              )}
+              {commentFor && (
+                <div className="service-comment">
+                  <textarea
+                    placeholder="Что случилось? Например: не работает кондиционер"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={3}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={!effectiveRoom || !!sending}
+                    onClick={() => send(SERVICE_OPTIONS.find((o) => o.key === commentFor))}
+                  >
+                    {sending ? 'Отправляем…' : 'Отправить'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
