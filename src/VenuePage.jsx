@@ -136,7 +136,17 @@ export default function VenuePage({ slug }) {
     <div className="page">
       <div className="container">
         <header className="header">
-          {venue.logo_url && <img className="logo" src={venue.logo_url} alt={venue.name} />}
+          {venue.logo_url && (
+            <img
+              className="logo"
+              src={venue.logo_url}
+              alt=""
+              onError={(e) => {
+                // битая ссылка на лого не должна портить страницу
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          )}
           <h1 className="venue-name">{venue.name}</h1>
           {venue.welcome_text && <p className="welcome">{venue.welcome_text}</p>}
         </header>
