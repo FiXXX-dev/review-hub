@@ -28,17 +28,26 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405)
 
   try {
-    const { venue_id, stars, message, contact, platform } = await req.json()
+    const { venue_id, stars, message, contact, platform, type, name, phone, service, preferred_time } =
+      await req.json()
 
+    const isAppointment = type === 'appointment'
     const starsNum = Number(stars)
-    if (!venue_id || !Number.isInteger(starsNum) || starsNum < 1 || starsNum > 5) {
-      return json({ error: 'venue_id and stars (1-5) are required' }, 400)
-    }
-    if (platform && !PLATFORM_NAMES[platform]) {
-      return json({ error: 'unknown platform' }, 400)
-    }
-    if (!platform && (typeof message !== 'string' || !message.trim())) {
-      return json({ error: 'message is required for feedback notifications' }, 400)
+    if (!venue_id) return json({ error: 'venue_id is required' }, 400)
+    if (isAppointment) {
+      if (typeof name !== 'string' || !name.trim() || typeof phone !== 'string' || !phone.trim()) {
+        return json({ error: 'name and phone are required for appointments' }, 400)
+      }
+    } else {
+      if (!Number.isInteger(starsNum) || starsNum < 1 || starsNum > 5) {
+        return json({ error: 'stars (1-5) are required' }, 400)
+      }
+      if (platform && !PLATFORM_NAMES[platform]) {
+        return json({ error: 'unknown platform' }, 400)
+      }
+      if (!platform && (typeof message !== 'string' || !message.trim())) {
+        return json({ error: 'message is required for feedback notifications' }, 400)
+      }
     }
 
     const supabase = createClient(
@@ -56,11 +65,15 @@ Deno.serve(async (req) => {
     // нет chat_id или токена — данные уже в базе, выходим без ошибки
     if (!venue.owner_telegram_chat_id || !token) return json({ ok: true, sent: false })
 
-    const text = platform
-      ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
-      : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${String(message).trim().slice(0, 2000)}"\n\nКонтакт: ${
-          (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
-        }`
+    const text = isAppointment
+      ? `📅 Новая запись — ${venue.name}\n\nИмя: ${String(name).trim().slice(0, 200)}\nТелефон: ${String(phone).trim().slice(0, 100)}\nУслуга: ${
+          (service && String(service).trim().slice(0, 200)) || 'не указана'
+        }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}`
+      : platform
+        ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
+        : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${String(message).trim().slice(0, 2000)}"\n\nКонтакт: ${
+            (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
+          }`
 
     const tg = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',

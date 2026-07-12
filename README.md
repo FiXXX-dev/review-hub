@@ -65,3 +65,9 @@ select date_trunc('day', created_at) d, count(*) from scans group by 1 order by 
 -- распределение оценок и конверсия в переход
 select stars, count(*) total, count(redirected_to) redirected from ratings group by 1 order by 1;
 ```
+
+## Пресеты по вертикалям
+
+Таблица `presets` (`restaurant`, `clinic`, `hotel`, `salon`, `shop`, `auto`) описывает набор блоков страницы: `{ type, label_ru, label_uz, icon }` + `default_theme`. У заведения есть `preset_key`; при создании `enabled_blocks` заполняется из пресета (триггер в базе + предзаполнение в админке), дальше блоки можно включать/выключать вручную. Страница `/v/:slug` одна для всех вертикалей — рендерит блоки из `enabled_blocks`.
+
+Типы блоков: `rating` (ядро, всегда первый), `wifi`, `appointment` (форма записи → таблица `appointments` + Telegram), `contacts`, `phone`, `instagram`/`telegram`, и универсальные link-блоки (`menu`, `price`, `catalog`, `doctors`, `masters`, `services`, `taxi`) — URL хранятся в `venues.block_links` (jsonb).

@@ -36,17 +36,28 @@ async function sendTelegram(chatId, text) {
 
 app.post('/api/notify', async (req, res) => {
   try {
-    const { venue_id, rating_id, stars, message, contact, platform } = req.body || {}
+    const { venue_id, rating_id, stars, message, contact, platform, type, name, phone, service, preferred_time } =
+      req.body || {}
 
+    const isAppointment = type === 'appointment'
     const starsNum = Number(stars)
-    if (!venue_id || !Number.isInteger(starsNum) || starsNum < 1 || starsNum > 5) {
-      return res.status(400).json({ error: 'venue_id and stars (1-5) are required' })
+    if (!venue_id) {
+      return res.status(400).json({ error: 'venue_id is required' })
     }
-    if (platform && !PLATFORM_NAMES[platform]) {
-      return res.status(400).json({ error: 'unknown platform' })
-    }
-    if (!platform && (typeof message !== 'string' || !message.trim())) {
-      return res.status(400).json({ error: 'message is required for feedback notifications' })
+    if (isAppointment) {
+      if (typeof name !== 'string' || !name.trim() || typeof phone !== 'string' || !phone.trim()) {
+        return res.status(400).json({ error: 'name and phone are required for appointments' })
+      }
+    } else {
+      if (!Number.isInteger(starsNum) || starsNum < 1 || starsNum > 5) {
+        return res.status(400).json({ error: 'stars (1-5) are required' })
+      }
+      if (platform && !PLATFORM_NAMES[platform]) {
+        return res.status(400).json({ error: 'unknown platform' })
+      }
+      if (!platform && (typeof message !== 'string' || !message.trim())) {
+        return res.status(400).json({ error: 'message is required for feedback notifications' })
+      }
     }
     if (!supabase) {
       return res.status(503).json({ error: 'supabase is not configured on the server' })
@@ -66,11 +77,15 @@ app.post('/api/notify', async (req, res) => {
       await supabase.from('ratings').update({ redirected_to: platform }).eq('id', rating_id)
     }
 
-    const text = platform
-      ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
-      : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${message.trim().slice(0, 2000)}"\n\nКонтакт: ${
-          (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
-        }`
+    const text = isAppointment
+      ? `📅 Новая запись — ${venue.name}\n\nИмя: ${name.trim().slice(0, 200)}\nТелефон: ${phone.trim().slice(0, 100)}\nУслуга: ${
+          (service && String(service).trim().slice(0, 200)) || 'не указана'
+        }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}`
+      : platform
+        ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
+        : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${message.trim().slice(0, 2000)}"\n\nКонтакт: ${
+            (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
+          }`
 
     // нет chat_id — данные уже в базе, просто выходим без ошибки
     if (venue.owner_telegram_chat_id) {

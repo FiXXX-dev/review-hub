@@ -15,6 +15,7 @@ const brand = {
   name: 'Bon!',
   welcome_text: 'Спасибо, что зашли к нам',
   accent_color: '#6B2737',
+  preset_key: 'restaurant',
   enabled_blocks: ['rating', 'menu', 'wifi', 'instagram'],
   owner_telegram_chat_id: DEMO_CHAT_ID || null,
 }

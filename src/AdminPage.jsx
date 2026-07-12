@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase.js'
+import { BLOCK_DEFS, LINK_TYPES } from './lib/blocks.js'
 
 const EMPTY_VENUE = {
   slug: '',
@@ -9,7 +10,6 @@ const EMPTY_VENUE = {
   yandex_review_url: '',
   google_review_url: '',
   gis2_review_url: '',
-  menu_url: '',
   wifi_ssid: '',
   wifi_password: '',
   instagram_url: '',
@@ -18,6 +18,9 @@ const EMPTY_VENUE = {
   address: '',
   owner_telegram_chat_id: '',
   accent_color: '#2563eb',
+  preset_key: '',
+  enabled_blocks: null,
+  block_links: {},
 }
 
 const FIELDS = [
@@ -28,7 +31,6 @@ const FIELDS = [
   { key: 'yandex_review_url', label: 'Отзыв на Яндекс.Картах (URL)' },
   { key: 'google_review_url', label: 'Отзыв на Google Картах (URL)' },
   { key: 'gis2_review_url', label: 'Отзыв на 2ГИС (URL)' },
-  { key: 'menu_url', label: 'Меню (URL на PDF/картинку)' },
   { key: 'wifi_ssid', label: 'Wi-Fi сеть' },
   { key: 'wifi_password', label: 'Wi-Fi пароль' },
   { key: 'instagram_url', label: 'Instagram (URL)' },
@@ -40,7 +42,13 @@ const FIELDS = [
 
 function venueToForm(v) {
   const form = { ...EMPTY_VENUE }
-  for (const k of Object.keys(EMPTY_VENUE)) form[k] = v?.[k] ?? form[k] ?? ''
+  for (const k of Object.keys(EMPTY_VENUE)) {
+    const val = v?.[k]
+    form[k] = val ?? form[k] ?? ''
+  }
+  form.block_links = { ...(v?.block_links || {}) }
+  // menu_url — поле до block_links; показываем его как ссылку блока menu
+  if (v?.menu_url && !form.block_links.menu) form.block_links.menu = v.menu_url
   return form
 }
 
@@ -114,18 +122,23 @@ function Login() {
 
 function Dashboard() {
   const [venues, setVenues] = useState([])
+  const [presets, setPresets] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null) // null = список, 'new' = создание, объект = редактирование
 
-  async function loadVenues() {
+  async function loadAll() {
     setLoading(true)
-    const { data } = await supabase.from('venues').select('*').order('created_at')
-    setVenues(data ?? [])
+    const [v, p] = await Promise.all([
+      supabase.from('venues').select('*').order('created_at'),
+      supabase.from('presets').select('*').order('name'),
+    ])
+    setVenues(v.data ?? [])
+    setPresets(p.data ?? [])
     setLoading(false)
   }
 
   useEffect(() => {
-    loadVenues()
+    loadAll()
   }, [])
 
   if (loading) {
@@ -140,13 +153,16 @@ function Dashboard() {
     return (
       <VenueEditor
         venue={selected === 'new' ? null : selected}
+        presets={presets}
         onBack={() => {
           setSelected(null)
-          loadVenues()
+          loadAll()
         }}
       />
     )
   }
+
+  const presetName = (key) => presets.find((p) => p.key === key)?.name
 
   return (
     <div className="page">
@@ -159,7 +175,10 @@ function Dashboard() {
         </div>
         {venues.map((v) => (
           <button key={v.id} className="card venue-row" onClick={() => setSelected(v)}>
-            <span className="venue-row-name">{v.name}</span>
+            <span className="venue-row-name">
+              {v.name}
+              {v.preset_key && <span className="venue-row-preset">{presetName(v.preset_key)}</span>}
+            </span>
             <span className="venue-row-slug">/v/{v.slug}</span>
           </button>
         ))}
@@ -172,23 +191,31 @@ function Dashboard() {
   )
 }
 
-function VenueEditor({ venue, onBack }) {
+function VenueEditor({ venue, presets, onBack }) {
   const [form, setForm] = useState(venueToForm(venue))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [stats, setStats] = useState(null)
   const [feedback, setFeedback] = useState([])
+  const [appointments, setAppointments] = useState([])
 
   const isNew = !venue
+  const preset = presets.find((p) => p.key === form.preset_key)
 
   useEffect(() => {
     if (isNew) return
     async function loadStats() {
-      const [scans, ratings, fb] = await Promise.all([
+      const [scans, ratings, fb, appts] = await Promise.all([
         supabase.from('scans').select('*', { count: 'exact', head: true }).eq('venue_id', venue.id),
         supabase.from('ratings').select('stars, redirected_to').eq('venue_id', venue.id),
         supabase
           .from('feedback')
+          .select('*')
+          .eq('venue_id', venue.id)
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase
+          .from('appointments')
           .select('*')
           .eq('venue_id', venue.id)
           .order('created_at', { ascending: false })
@@ -202,6 +229,7 @@ function VenueEditor({ venue, onBack }) {
       }
       setStats({ scans: scans.count ?? 0, total: (ratings.data ?? []).length, byStars, redirected })
       setFeedback(fb.data ?? [])
+      setAppointments(appts.data ?? [])
     }
     loadStats()
   }, [venue, isNew])
@@ -210,16 +238,60 @@ function VenueEditor({ venue, onBack }) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
+  // ─── блоки ───
+  // порядок отображения: блоки пресета, затем остальные известные типы
+  const presetTypes = (preset?.blocks ?? []).map((b) => b.type)
+  const allTypes = [...presetTypes, ...Object.keys(BLOCK_DEFS).filter((t) => !presetTypes.includes(t))]
+  const enabled = form.enabled_blocks ?? (presetTypes.length ? presetTypes : [])
+
+  function blockDef(type) {
+    return { ...BLOCK_DEFS[type], ...(preset?.blocks ?? []).find((b) => b.type === type) }
+  }
+
+  function toggleBlock(type) {
+    if (type === 'rating') return // ядро продукта — не отключается
+    const next = enabled.includes(type)
+      ? enabled.filter((t) => t !== type)
+      : allTypes.filter((t) => enabled.includes(t) || t === type)
+    set('enabled_blocks', next.includes('rating') ? next : ['rating', ...next])
+  }
+
+  function pickPreset(key) {
+    const p = presets.find((x) => x.key === key)
+    setForm((f) => ({
+      ...f,
+      preset_key: key,
+      // состав блоков подставляем из пресета, дальше можно редактировать
+      enabled_blocks: p ? p.blocks.map((b) => b.type) : f.enabled_blocks,
+      accent_color:
+        p?.default_theme && (isNew || f.accent_color === EMPTY_VENUE.accent_color)
+          ? p.default_theme
+          : f.accent_color,
+    }))
+  }
+
+  function setLink(type, url) {
+    setForm((f) => ({ ...f, block_links: { ...f.block_links, [type]: url } }))
+  }
+
+  const enabledLinkTypes = enabled.filter((t) => LINK_TYPES.includes(t))
+
   async function save(e) {
     e.preventDefault()
     setBusy(true)
     setError('')
     const row = {}
     for (const [k, v] of Object.entries(form)) row[k] = typeof v === 'string' && v.trim() === '' ? null : v
-    // slug/name/цвет обязательны, пустыми в базу не отправляем
     row.slug = (form.slug || '').trim().toLowerCase()
     row.name = (form.name || '').trim()
     row.accent_color = form.accent_color || '#2563eb'
+    row.preset_key = form.preset_key || null
+    row.enabled_blocks = form.enabled_blocks?.length ? form.enabled_blocks : null
+    row.block_links = Object.fromEntries(
+      Object.entries(form.block_links || {})
+        .map(([t, u]) => [t, (u || '').trim()])
+        .filter(([, u]) => u)
+    )
     if (!/^[a-z0-9-]+$/.test(row.slug)) {
       setError('Slug: только латиница в нижнем регистре, цифры и дефис')
       setBusy(false)
@@ -262,6 +334,59 @@ function VenueEditor({ venue, onBack }) {
         <h1 className="admin-title">{isNew ? 'Новое заведение' : form.name}</h1>
 
         <form className="card admin-form" onSubmit={save}>
+          <label className="admin-field">
+            <span>Тип заведения (пресет)</span>
+            <select value={form.preset_key || ''} onChange={(e) => pickPreset(e.target.value)}>
+              <option value="">— без пресета —</option>
+              {presets.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="admin-field">
+            <span>Блоки на странице</span>
+            <div className="block-toggles">
+              {allTypes.map((t) => {
+                const def = blockDef(t)
+                if (!def?.icon) return null
+                const on = enabled.includes(t)
+                return (
+                  <label key={t} className={`block-toggle ${on ? 'on' : ''} ${t === 'rating' ? 'locked' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={t === 'rating'}
+                      onChange={() => toggleBlock(t)}
+                    />
+                    {def.icon} {def.label_ru}
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          {enabledLinkTypes.length > 0 && (
+            <div className="admin-field">
+              <span>Ссылки блоков</span>
+              {enabledLinkTypes.map((t) => {
+                const def = blockDef(t)
+                return (
+                  <input
+                    key={t}
+                    type="text"
+                    placeholder={`${def.icon} ${def.label_ru} — URL`}
+                    value={form.block_links[t] || ''}
+                    onChange={(e) => setLink(t, e.target.value)}
+                    style={{ marginBottom: 8 }}
+                  />
+                )
+              })}
+            </div>
+          )}
+
           {FIELDS.map((f) => (
             <label key={f.key} className="admin-field">
               <span>
@@ -329,6 +454,24 @@ function VenueEditor({ venue, onBack }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {!isNew && appointments.length > 0 && (
+          <div className="card admin-stats">
+            <h2 className="admin-subtitle">Записи</h2>
+            {appointments.map((a) => (
+              <div key={a.id} className="feedback-item">
+                <div className="feedback-meta">
+                  {new Date(a.created_at).toLocaleString('ru-RU')}
+                  {a.preferred_time ? ` · хочет: ${a.preferred_time}` : ''}
+                </div>
+                <div className="feedback-text">
+                  {a.name} · {a.phone}
+                  {a.service ? ` · ${a.service}` : ''}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

@@ -587,3 +587,67 @@ body {
   margin: 0 auto 4px;
   display: block;
 }
+
+.contacts-value {
+  text-align: right;
+  max-width: 65%;
+}
+
+/* ─── Пресеты и блоки в админке ─── */
+.admin-form select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.admin-form select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.block-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.block-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.block-toggle input {
+  display: none;
+}
+
+.block-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.block-toggle.locked {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.venue-row-preset {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
