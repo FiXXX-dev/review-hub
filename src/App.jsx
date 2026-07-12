@@ -1,5 +1,6 @@
 import React from 'react'
 import VenuePage from './VenuePage.jsx'
+import AdminPage from './AdminPage.jsx'
 
 function getSlug() {
   // не привязываемся к началу пути: на GitHub Pages сайт живёт под /review-hub/
@@ -8,6 +9,10 @@ function getSlug() {
 }
 
 export default function App() {
+  if (/\/admin\/?$/.test(window.location.pathname)) {
+    return <AdminPage />
+  }
+
   const slug = getSlug()
 
   if (!slug) {
