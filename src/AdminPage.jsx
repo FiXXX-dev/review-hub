@@ -27,7 +27,6 @@ const FIELDS = [
   { key: 'slug', label: 'Slug (адрес страницы: /v/…)', required: true, hint: 'латиница, цифры, дефис' },
   { key: 'name', label: 'Название', required: true },
   { key: 'welcome_text', label: 'Приветствие' },
-  { key: 'logo_url', label: 'Ссылка на логотип' },
   { key: 'yandex_review_url', label: 'Отзыв на Яндекс.Картах (URL)' },
   { key: 'google_review_url', label: 'Отзыв на Google Картах (URL)' },
   { key: 'gis2_review_url', label: 'Отзыв на 2ГИС (URL)' },
@@ -409,6 +408,9 @@ function VenueEditor({ venue, presets, onBack }) {
               />
             </label>
           ))}
+
+          <LogoField form={form} set={set} />
+
           <label className="admin-field">
             <span>Цвет кнопок</span>
             <input
@@ -497,6 +499,75 @@ function VenueEditor({ venue, presets, onBack }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/* ─── Логотип: загрузка в Supabase Storage (бакет logos) ─── */
+function LogoField({ form, set }) {
+  const [uploading, setUploading] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function onFile(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // чтобы можно было выбрать тот же файл повторно
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setErr('Нужна картинка: PNG, JPG, SVG или WebP')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErr('Файл больше 5 МБ — сожми картинку')
+      return
+    }
+    setErr('')
+    setUploading(true)
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+    const slug = (form.slug || 'venue').trim() || 'venue'
+    const path = `${slug}-${Date.now()}.${ext}`
+    const { error } = await supabase.storage
+      .from('logos')
+      .upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' })
+    if (error) {
+      setErr(
+        /bucket/i.test(error.message)
+          ? 'Бакет logos не найден — выполни миграцию 0005 в Supabase'
+          : `Не загрузилось: ${error.message}`
+      )
+      setUploading(false)
+      return
+    }
+    const { data } = supabase.storage.from('logos').getPublicUrl(path)
+    set('logo_url', data.publicUrl)
+    setUploading(false)
+  }
+
+  return (
+    <div className="admin-field">
+      <span>Логотип</span>
+      <div className="logo-upload">
+        {form.logo_url ? (
+          <img className="logo-preview" src={form.logo_url} alt="" />
+        ) : (
+          <div className="logo-preview logo-preview-empty">—</div>
+        )}
+        <label className={`btn btn-secondary logo-upload-btn ${uploading ? 'disabled' : ''}`}>
+          <input type="file" accept="image/*" onChange={onFile} disabled={uploading} hidden />
+          {uploading ? 'Загружаем…' : form.logo_url ? 'Заменить лого' : 'Загрузить лого'}
+        </label>
+        {form.logo_url && (
+          <button type="button" className="btn-link" onClick={() => set('logo_url', '')}>
+            Убрать
+          </button>
+        )}
+      </div>
+      <input
+        type="text"
+        placeholder="…или вставь прямую ссылку на картинку"
+        value={form.logo_url ?? ''}
+        onChange={(e) => set('logo_url', e.target.value)}
+      />
+      {err && <p className="admin-error">{err}</p>}
     </div>
   )
 }

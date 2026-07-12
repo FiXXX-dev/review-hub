@@ -651,3 +651,41 @@ body {
   font-weight: 400;
   color: var(--text-muted);
 }
+
+/* ─── Загрузка лого в админке ─── */
+.logo-upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.logo-preview {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.logo-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.logo-upload-btn {
+  min-height: 44px;
+  font-size: 14px;
+  padding: 10px 16px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.logo-upload-btn.disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
