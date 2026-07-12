@@ -828,3 +828,173 @@ body {
   color: var(--accent);
   text-decoration: none;
 }
+
+/* ─── Чипы (такси: класс, время) ─── */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.chip {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.chip-time {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ─── Каталог услуг ─── */
+.svc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.svc-item,
+.svc-selected {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+}
+
+.svc-item {
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.svc-item:active {
+  transform: scale(0.98);
+}
+
+.svc-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.svc-icon {
+  font-size: 18px;
+}
+
+.svc-price {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.svc-price.free {
+  color: #059669;
+  background: #ecfdf5;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* ─── Админка услуг ─── */
+.svc-admin-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+}
+
+.svc-admin-row + .svc-admin-row {
+  border-top: 1px solid var(--border);
+}
+
+.svc-admin-line {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.svc-admin-line input[type='text'],
+.svc-admin-line input[type='number'] {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.svc-admin-icon {
+  width: 56px;
+  text-align: center;
+}
+
+.svc-admin-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.svc-admin-price {
+  width: 110px;
+}
+
+.svc-admin-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.svc-admin-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.svc-admin-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.svc-admin-actions .btn-link {
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.svc-admin-actions .danger {
+  color: #dc2626;
+}

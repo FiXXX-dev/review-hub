@@ -48,17 +48,24 @@ app.post('/api/notify', async (req, res) => {
     const {
       venue_id, rating_id, stars, message, contact, platform, type,
       name, phone, service, preferred_time, room, request_type, comment,
+      destination, car_class, when_time, price_label,
     } = req.body || {}
 
     const isAppointment = type === 'appointment'
     const isService = type === 'service'
+    const isTaxi = type === 'taxi'
     const starsNum = Number(stars)
     if (!venue_id) {
       return res.status(400).json({ error: 'venue_id is required' })
     }
-    if (isService) {
-      if (typeof room !== 'string' || !room.trim() || !SERVICE_LABELS[request_type]) {
-        return res.status(400).json({ error: 'room and known request_type are required for service' })
+    if (isTaxi) {
+      if (typeof destination !== 'string' || !destination.trim()) {
+        return res.status(400).json({ error: 'destination is required for taxi' })
+      }
+    } else if (isService) {
+      // request_type — либо известный ключ плиток, либо название услуги из каталога
+      if (typeof room !== 'string' || !room.trim() || typeof request_type !== 'string' || !request_type.trim()) {
+        return res.status(400).json({ error: 'room and request_type are required for service' })
       }
     } else if (isAppointment) {
       if (typeof name !== 'string' || !name.trim() || typeof phone !== 'string' || !phone.trim()) {
@@ -94,11 +101,20 @@ app.post('/api/notify', async (req, res) => {
     }
 
     const roomNote = room && String(room).trim() ? `\nНомер: ${String(room).trim().slice(0, 20)}` : ''
-    const text = isService
-      ? `🛎 Номер ${String(room).trim().slice(0, 20)} — ${SERVICE_LABELS[request_type]}${
-          comment && String(comment).trim() ? `, ${String(comment).trim().slice(0, 500)}` : ''
+    const clean = (v, n) => (v ? String(v).trim().slice(0, n) : '')
+    const text = isTaxi
+      ? `🚕 ${room ? `Номер ${clean(room, 20)} — такси` : 'Такси'}\nКуда: ${clean(destination, 300)}\nКласс: ${
+          clean(car_class, 40) || 'любой'
+        } · ${clean(when_time, 40) ? `к ${clean(when_time, 40)}` : 'сейчас'}${
+          clean(comment, 500) ? `\n${clean(comment, 500)}` : ''
         }`
-      : isAppointment
+      : isService
+        ? `🛎 Номер ${clean(room, 20)} — ${SERVICE_LABELS[request_type] || clean(request_type, 100)}${
+            clean(price_label, 40) ? ` · ${clean(price_label, 40)}` : ''
+          }${clean(preferred_time, 40) ? `\nК времени: ${clean(preferred_time, 40)}` : ''}${
+            clean(comment, 500) ? `\n${clean(comment, 500)}` : ''
+          }`
+        : isAppointment
         ? `📅 Новая запись — ${venue.name}\n\nИмя: ${name.trim().slice(0, 200)}\nТелефон: ${phone.trim().slice(0, 100)}\nУслуга: ${
             (service && String(service).trim().slice(0, 200)) || 'не указана'
           }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}${roomNote}`

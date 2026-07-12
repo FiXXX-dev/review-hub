@@ -19,8 +19,19 @@ export const BLOCK_DEFS = {
   phone: { label_ru: 'Позвонить', label_uz: "Qo'ng'iroq qilish", icon: '📞' },
 }
 
-// Блоки-ссылки: иконка + подпись + url (url лежит в venues.block_links)
-export const LINK_TYPES = ['menu', 'price', 'catalog', 'doctors', 'masters', 'services', 'taxi', 'info']
+// Блоки-ссылки: иконка + подпись + url (url лежит в venues.block_links).
+// 'taxi' и 'services' больше не ссылки — это формы-заявки.
+export const LINK_TYPES = ['menu', 'price', 'catalog', 'doctors', 'masters', 'info']
+
+// Классы такси по умолчанию (venues.taxi_classes переопределяет)
+export const DEFAULT_TAXI_CLASSES = ['Эконом', 'Комфорт', 'Минивэн']
+
+// "45000" -> "45 000 сум"
+export function formatPrice(p) {
+  const n = Number(p)
+  if (!Number.isFinite(n)) return ''
+  return `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} сум`
+}
 
 // Запросы обслуживания номера (блок service). Ключ хранится в
 // service_requests.request_type; venues.service_options (jsonb-массив

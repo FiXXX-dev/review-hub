@@ -209,6 +209,7 @@ function VenueEditor({ venue, presets, onBack }) {
   const [feedback, setFeedback] = useState([])
   const [appointments, setAppointments] = useState([])
   const [serviceRequests, setServiceRequests] = useState([])
+  const [taxiRequests, setTaxiRequests] = useState([])
 
   const isNew = !venue
   const preset = presets.find((p) => p.key === form.preset_key)
@@ -216,7 +217,7 @@ function VenueEditor({ venue, presets, onBack }) {
   useEffect(() => {
     if (isNew) return
     async function loadStats() {
-      const [scans, ratings, fb, appts, srv] = await Promise.all([
+      const [scans, ratings, fb, appts, srv, taxi] = await Promise.all([
         supabase.from('scans').select('*', { count: 'exact', head: true }).eq('venue_id', venue.id),
         supabase.from('ratings').select('stars, redirected_to').eq('venue_id', venue.id),
         supabase
@@ -237,6 +238,12 @@ function VenueEditor({ venue, presets, onBack }) {
           .eq('venue_id', venue.id)
           .order('created_at', { ascending: false })
           .limit(30),
+        supabase
+          .from('taxi_requests')
+          .select('*')
+          .eq('venue_id', venue.id)
+          .order('created_at', { ascending: false })
+          .limit(30),
       ])
       const byStars = [0, 0, 0, 0, 0]
       let redirected = 0
@@ -248,6 +255,7 @@ function VenueEditor({ venue, presets, onBack }) {
       setFeedback(fb.data ?? [])
       setAppointments(appts.data ?? [])
       setServiceRequests(srv.data ?? [])
+      setTaxiRequests(taxi.data ?? [])
     }
     loadStats()
   }, [venue, isNew])
@@ -400,6 +408,20 @@ function VenueEditor({ venue, presets, onBack }) {
             </div>
           </div>
 
+          {!isNew && enabled.includes('services') && (
+            <div className="admin-field">
+              <span>Каталог услуг и цены</span>
+              <a
+                className="btn-link"
+                href={`${import.meta.env.BASE_URL}admin/services/${form.slug}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Редактировать услуги ↗
+              </a>
+            </div>
+          )}
+
           {enabled.includes('service') && (
             <div className="admin-field">
               <span>Запросы в блоке «Обслуживание номера»</span>
@@ -542,6 +564,26 @@ function VenueEditor({ venue, presets, onBack }) {
                 <div className="feedback-text">
                   {SERVICE_OPTIONS.find((o) => o.key === s.request_type)?.label_ru || s.request_type}
                   {s.comment ? ` — ${s.comment}` : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isNew && taxiRequests.length > 0 && (
+          <div className="card admin-stats">
+            <h2 className="admin-subtitle">Вызовы такси</h2>
+            {taxiRequests.map((t) => (
+              <div key={t.id} className="feedback-item">
+                <div className="feedback-meta">
+                  {new Date(t.created_at).toLocaleString('ru-RU')}
+                  {t.room ? ` · номер ${t.room}` : ''}
+                  {` · ${t.when_time ? `к ${t.when_time}` : 'сейчас'}`}
+                </div>
+                <div className="feedback-text">
+                  {t.destination}
+                  {t.car_class ? ` · ${t.car_class}` : ''}
+                  {t.comment ? ` — ${t.comment}` : ''}
                 </div>
               </div>
             ))}

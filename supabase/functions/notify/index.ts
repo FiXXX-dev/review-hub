@@ -40,15 +40,22 @@ Deno.serve(async (req) => {
     const {
       venue_id, stars, message, contact, platform, type,
       name, phone, service, preferred_time, room, request_type, comment,
+      destination, car_class, when_time, price_label,
     } = await req.json()
 
     const isAppointment = type === 'appointment'
     const isService = type === 'service'
+    const isTaxi = type === 'taxi'
     const starsNum = Number(stars)
     if (!venue_id) return json({ error: 'venue_id is required' }, 400)
-    if (isService) {
-      if (typeof room !== 'string' || !room.trim() || !SERVICE_LABELS[request_type]) {
-        return json({ error: 'room and known request_type are required for service' }, 400)
+    if (isTaxi) {
+      if (typeof destination !== 'string' || !destination.trim()) {
+        return json({ error: 'destination is required for taxi' }, 400)
+      }
+    } else if (isService) {
+      // request_type — либо известный ключ плиток, либо название услуги из каталога
+      if (typeof room !== 'string' || !room.trim() || typeof request_type !== 'string' || !request_type.trim()) {
+        return json({ error: 'room and request_type are required for service' }, 400)
       }
     } else if (isAppointment) {
       if (typeof name !== 'string' || !name.trim() || typeof phone !== 'string' || !phone.trim()) {
@@ -82,11 +89,20 @@ Deno.serve(async (req) => {
     if (!venue.owner_telegram_chat_id || !token) return json({ ok: true, sent: false })
 
     const roomNote = room && String(room).trim() ? `\nНомер: ${String(room).trim().slice(0, 20)}` : ''
-    const text = isService
-      ? `🛎 Номер ${String(room).trim().slice(0, 20)} — ${SERVICE_LABELS[request_type]}${
-          comment && String(comment).trim() ? `, ${String(comment).trim().slice(0, 500)}` : ''
+    const clean = (v: unknown, n: number) => (v ? String(v).trim().slice(0, n) : '')
+    const text = isTaxi
+      ? `🚕 ${room ? `Номер ${clean(room, 20)} — такси` : 'Такси'}\nКуда: ${clean(destination, 300)}\nКласс: ${
+          clean(car_class, 40) || 'любой'
+        } · ${clean(when_time, 40) ? `к ${clean(when_time, 40)}` : 'сейчас'}${
+          clean(comment, 500) ? `\n${clean(comment, 500)}` : ''
         }`
-      : isAppointment
+      : isService
+        ? `🛎 Номер ${clean(room, 20)} — ${SERVICE_LABELS[request_type] || clean(request_type, 100)}${
+            clean(price_label, 40) ? ` · ${clean(price_label, 40)}` : ''
+          }${clean(preferred_time, 40) ? `\nК времени: ${clean(preferred_time, 40)}` : ''}${
+            clean(comment, 500) ? `\n${clean(comment, 500)}` : ''
+          }`
+        : isAppointment
         ? `📅 Новая запись — ${venue.name}\n\nИмя: ${String(name).trim().slice(0, 200)}\nТелефон: ${String(phone).trim().slice(0, 100)}\nУслуга: ${
             (service && String(service).trim().slice(0, 200)) || 'не указана'
           }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}${roomNote}`

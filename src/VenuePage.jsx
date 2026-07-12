@@ -1,7 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Sparkles, Bed, GlassWater, Clock, Wrench, Car } from 'lucide-react'
 import { supabase } from './lib/supabase.js'
-import { blockUrl, resolveBlocks, orderPlatforms, SERVICE_OPTIONS } from './lib/blocks.js'
+import {
+  blockUrl,
+  resolveBlocks,
+  orderPlatforms,
+  SERVICE_OPTIONS,
+  DEFAULT_TAXI_CLASSES,
+  formatPrice,
+} from './lib/blocks.js'
 
 const SERVICE_ICONS = {
   cleaning: Sparkles,
@@ -229,6 +236,12 @@ function renderBlock(block, venue, room, setRoom) {
       return (
         <ServiceBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} />
       )
+    case 'services':
+      return (
+        <ServicesCatalogBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} />
+      )
+    case 'taxi':
+      return <TaxiBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} />
     case 'contacts':
       return venue.address || venue.phone ? (
         <ContactsBlock key={type} block={block} venue={venue} />
@@ -664,6 +677,277 @@ function ServiceBlock({ block, venue, room, setRoom }) {
                 </div>
               )}
             </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ─── Такси: форма вызова ─── */
+function TaxiBlock({ block, venue, room, setRoom }) {
+  const [open, setOpen] = useState(false)
+  const [roomInput, setRoomInput] = useState('')
+  const [destination, setDestination] = useState('')
+  const classes = Array.isArray(venue.taxi_classes) && venue.taxi_classes.length
+    ? venue.taxi_classes
+    : DEFAULT_TAXI_CLASSES
+  const [carClass, setCarClass] = useState(classes[0])
+  const [whenMode, setWhenMode] = useState('now') // 'now' | 'later'
+  const [time, setTime] = useState('')
+  const [comment, setComment] = useState('')
+  const [sending, setSending] = useState(false)
+  const [done, setDone] = useState(false)
+
+  const effectiveRoom = (room || roomInput).trim()
+  const canSend =
+    !sending && destination.trim() && effectiveRoom && (whenMode === 'now' || time.trim())
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!canSend) return
+    setSending(true)
+    if (!room && roomInput.trim()) setRoom(roomInput.trim().slice(0, 20))
+    const row = {
+      venue_id: venue.id,
+      room: effectiveRoom.slice(0, 20),
+      destination: destination.trim().slice(0, 300),
+      car_class: carClass,
+      when_time: whenMode === 'later' ? time.trim().slice(0, 40) : null,
+      comment: comment.trim() ? comment.trim().slice(0, 500) : null,
+    }
+    await supabase.from('taxi_requests').insert(row)
+    await notifyApi({ type: 'taxi', ...row })
+    setSending(false)
+    setDone(true)
+  }
+
+  return (
+    <>
+      <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
+        {block.icon} {block.label}
+      </button>
+      {open && (
+        <div className="card">
+          {done ? (
+            <div className="thanks">
+              <div className="thanks-emoji">🚕</div>
+              <p className="thanks-title">Заявка принята!</p>
+              <p className="thanks-sub">Ресепшн свяжется с вами.</p>
+            </div>
+          ) : (
+            <form className="feedback-form" onSubmit={submit}>
+              {!room && (
+                <input
+                  type="text"
+                  placeholder="Номер комнаты"
+                  value={roomInput}
+                  onChange={(e) => setRoomInput(e.target.value)}
+                  required
+                />
+              )}
+              <input
+                type="text"
+                placeholder="Куда ехать"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                required
+              />
+              <div className="chip-row">
+                {classes.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`chip ${carClass === c ? 'on' : ''}`}
+                    onClick={() => setCarClass(c)}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+              <div className="chip-row">
+                <button
+                  type="button"
+                  className={`chip ${whenMode === 'now' ? 'on' : ''}`}
+                  onClick={() => setWhenMode('now')}
+                >
+                  Сейчас
+                </button>
+                <button
+                  type="button"
+                  className={`chip ${whenMode === 'later' ? 'on' : ''}`}
+                  onClick={() => setWhenMode('later')}
+                >
+                  Ко времени
+                </button>
+                {whenMode === 'later' && (
+                  <input
+                    className="chip-time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    required
+                  />
+                )}
+              </div>
+              <textarea
+                placeholder="Комментарий (по желанию)"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={2}
+              />
+              <button className="btn btn-primary" type="submit" disabled={!canSend}>
+                {sending ? 'Отправляем…' : 'Вызвать такси'}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ─── Каталог услуг с ценами ─── */
+function ServicesCatalogBlock({ block, venue, room, setRoom }) {
+  const [open, setOpen] = useState(false)
+  const [items, setItems] = useState(null) // null = ещё не загружали
+  const [selected, setSelected] = useState(null)
+  const [roomInput, setRoomInput] = useState('')
+  const [comment, setComment] = useState('')
+  const [time, setTime] = useState('')
+  const [sending, setSending] = useState(false)
+  const [done, setDone] = useState(false)
+
+  const effectiveRoom = (room || roomInput).trim()
+
+  useEffect(() => {
+    if (!open || items !== null) return
+    supabase
+      .from('services')
+      .select('*')
+      .eq('venue_id', venue.id)
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => setItems(data ?? []))
+  }, [open, items, venue.id])
+
+  function priceLabel(s) {
+    if (s.is_free || s.price == null) return 'Бесплатно'
+    return formatPrice(s.price)
+  }
+
+  async function submit(e) {
+    e.preventDefault()
+    if (sending || !selected || !effectiveRoom) return
+    if (selected.require_comment && !comment.trim()) return
+    setSending(true)
+    if (!room && roomInput.trim()) setRoom(roomInput.trim().slice(0, 20))
+    const row = {
+      venue_id: venue.id,
+      room: effectiveRoom.slice(0, 20),
+      request_type: selected.title_ru,
+      comment: comment.trim() ? comment.trim().slice(0, 500) : null,
+      preferred_time: time.trim() ? time.trim().slice(0, 40) : null,
+    }
+    await supabase.from('service_requests').insert(row)
+    await notifyApi({ type: 'service', ...row, price_label: priceLabel(selected) })
+    setSending(false)
+    setDone(true)
+  }
+
+  return (
+    <>
+      <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
+        {block.icon} {block.label}
+      </button>
+      {open && (
+        <div className="card">
+          {done ? (
+            <div className="thanks">
+              <div className="thanks-emoji">🛎️</div>
+              <p className="thanks-title">Заявка принята!</p>
+              <p className="thanks-sub">Скоро подойдём.</p>
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => {
+                  setDone(false)
+                  setSelected(null)
+                  setComment('')
+                  setTime('')
+                }}
+              >
+                Заказать ещё
+              </button>
+            </div>
+          ) : items === null ? (
+            <div className="spinner" style={{ margin: '12px auto' }} />
+          ) : items.length === 0 ? (
+            <p className="service-hint">Список услуг пока пуст</p>
+          ) : !selected ? (
+            <div className="svc-list">
+              {items.map((s) => (
+                <button key={s.id} type="button" className="svc-item" onClick={() => setSelected(s)}>
+                  <span className="svc-title">
+                    {s.icon && <span className="svc-icon">{s.icon}</span>}
+                    {s.title_ru}
+                  </span>
+                  <span className={`svc-price ${s.is_free || s.price == null ? 'free' : ''}`}>
+                    {priceLabel(s)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <form className="feedback-form" onSubmit={submit}>
+              <div className="svc-selected">
+                <span className="svc-title">
+                  {selected.icon && <span className="svc-icon">{selected.icon}</span>}
+                  {selected.title_ru}
+                </span>
+                <span className={`svc-price ${selected.is_free || selected.price == null ? 'free' : ''}`}>
+                  {priceLabel(selected)}
+                </span>
+              </div>
+              {!room && (
+                <input
+                  type="text"
+                  placeholder="Номер комнаты"
+                  value={roomInput}
+                  onChange={(e) => setRoomInput(e.target.value)}
+                  required
+                />
+              )}
+              <textarea
+                placeholder={
+                  selected.require_comment
+                    ? 'Опишите, что случилось (обязательно)'
+                    : 'Комментарий (по желанию)'
+                }
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={2}
+                required={selected.require_comment}
+              />
+              <input
+                type="text"
+                placeholder="К какому времени (по желанию)"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+              <button
+                className="btn btn-primary"
+                type="submit"
+                disabled={
+                  sending || !effectiveRoom || (selected.require_comment && !comment.trim())
+                }
+              >
+                {sending ? 'Отправляем…' : 'Заказать'}
+              </button>
+              <button type="button" className="btn-link" onClick={() => setSelected(null)}>
+                ← К списку услуг
+              </button>
+            </form>
           )}
         </div>
       )}
