@@ -7,16 +7,24 @@ const PLATFORMS = [
   { key: '2gis', label: '2ГИС', urlField: 'gis2_review_url', icon: '🟢' },
 ]
 
+// Уведомление — best effort, посетителя не блокируем.
+// Сначала пробуем собственный бэкенд (Railway), если его нет
+// (на GitHub Pages) — Supabase Edge Function 'notify'.
 async function notifyApi(payload) {
   try {
-    await fetch('/api/notify', {
+    const res = await fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       keepalive: true,
     })
+    if (!res.ok) throw new Error(`api/notify ${res.status}`)
   } catch {
-    // уведомление — best effort, посетителя не блокируем
+    try {
+      await supabase?.functions.invoke('notify', { body: payload })
+    } catch {
+      // некому слать — данные всё равно уже в базе
+    }
   }
 }
 
@@ -67,23 +75,40 @@ export default function VenuePage({ slug }) {
     if (venue?.accent_color) {
       document.documentElement.style.setProperty('--accent', venue.accent_color)
     }
+    if (venue?.name) {
+      document.title = venue.name
+    }
   }, [venue])
+
+  const ratingInsertPending = useRef(false)
 
   async function pickStars(n) {
     setStars(n)
     if (!venue) return
-    // оценка пишется сразу при выборе звёзд; redirected_to проставит бэкенд при клике на платформу
+    // оценка пишется в ratings сразу при выборе звёзд;
+    // повторный выбор обновляет ту же строку (RPC), а не плодит новые
+    if (ratingId) {
+      supabase.rpc('rating_set_stars', { p_rating_id: ratingId, p_stars: n })
+      return
+    }
+    if (ratingInsertPending.current) return
+    ratingInsertPending.current = true
     const { data } = await supabase
       .from('ratings')
       .insert({ venue_id: venue.id, stars: n })
       .select('id')
       .single()
+    ratingInsertPending.current = false
     if (data) setRatingId(data.id)
   }
 
-  function goToPlatform(platform) {
+  async function goToPlatform(platform) {
     const url = venue[platform.urlField]
-    notifyApi({
+    // redirected_to пишем до ухода со страницы (anon не имеет update — RPC)
+    if (ratingId) {
+      await supabase.rpc('rating_set_redirect', { p_rating_id: ratingId, p_platform: platform.key })
+    }
+    await notifyApi({
       venue_id: venue.id,
       rating_id: ratingId,
       stars,
@@ -148,6 +173,13 @@ export default function VenuePage({ slug }) {
   }
 
   const availablePlatforms = PLATFORMS.filter((p) => venue[p.urlField])
+  // enabled_blocks: null/пусто = показывать всё (по наличию данных)
+  const blockOn = (b) => !venue.enabled_blocks?.length || venue.enabled_blocks.includes(b)
+  const showRating = blockOn('rating')
+  const showMenu = blockOn('menu') && venue.menu_url
+  const showWifi = blockOn('wifi') && venue.wifi_ssid
+  const showInstagram = blockOn('instagram') && venue.instagram_url
+  const showTelegram = blockOn('telegram') && venue.telegram_url
 
   return (
     <div className="page">
@@ -160,7 +192,8 @@ export default function VenuePage({ slug }) {
 
         <main className="actions">
           {/* ─── Оценка ─── */}
-          {!ratingOpen ? (
+          {showRating &&
+          (!ratingOpen ? (
             <button className="btn btn-primary btn-big" onClick={() => setRatingOpen(true)}>
               ⭐ Оценить нас
             </button>
@@ -231,17 +264,17 @@ export default function VenuePage({ slug }) {
                 </>
               )}
             </div>
-          )}
+          ))}
 
           {/* ─── Меню ─── */}
-          {venue.menu_url && (
+          {showMenu && (
             <a className="btn btn-secondary" href={venue.menu_url} target="_blank" rel="noreferrer">
               📖 Меню
             </a>
           )}
 
           {/* ─── Wi-Fi ─── */}
-          {venue.wifi_ssid && (
+          {showWifi && (
             <>
               <button className="btn btn-secondary" onClick={() => setWifiOpen(!wifiOpen)}>
                 📶 Wi-Fi
@@ -269,14 +302,14 @@ export default function VenuePage({ slug }) {
           )}
 
           {/* ─── Соцсети ─── */}
-          {(venue.instagram_url || venue.telegram_url) && (
+          {(showInstagram || showTelegram) && (
             <div className="socials">
-              {venue.instagram_url && (
+              {showInstagram && (
                 <a className="btn btn-social" href={venue.instagram_url} target="_blank" rel="noreferrer">
                   📷 Instagram
                 </a>
               )}
-              {venue.telegram_url && (
+              {showTelegram && (
                 <a className="btn btn-social" href={venue.telegram_url} target="_blank" rel="noreferrer">
                   ✈️ Telegram
                 </a>
