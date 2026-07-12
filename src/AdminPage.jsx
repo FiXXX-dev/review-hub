@@ -44,9 +44,12 @@ function venueToForm(v) {
   const form = { ...EMPTY_VENUE }
   for (const k of Object.keys(EMPTY_VENUE)) {
     const val = v?.[k]
-    form[k] = val ?? form[k] ?? ''
+    if (val !== undefined && val !== null) form[k] = val
   }
-  form.block_links = { ...(v?.block_links || {}) }
+  // enabled_blocks: строго массив или null (не пустая строка!)
+  form.enabled_blocks = Array.isArray(v?.enabled_blocks) ? v.enabled_blocks : null
+  form.block_links =
+    v?.block_links && typeof v.block_links === 'object' ? { ...v.block_links } : {}
   // menu_url — поле до block_links; показываем его как ссылку блока menu
   if (v?.menu_url && !form.block_links.menu) form.block_links.menu = v.menu_url
   return form
@@ -242,7 +245,11 @@ function VenueEditor({ venue, presets, onBack }) {
   // порядок отображения: блоки пресета, затем остальные известные типы
   const presetTypes = (preset?.blocks ?? []).map((b) => b.type)
   const allTypes = [...presetTypes, ...Object.keys(BLOCK_DEFS).filter((t) => !presetTypes.includes(t))]
-  const enabled = form.enabled_blocks ?? (presetTypes.length ? presetTypes : [])
+  const enabled = Array.isArray(form.enabled_blocks)
+    ? form.enabled_blocks
+    : presetTypes.length
+      ? presetTypes
+      : []
 
   function blockDef(type) {
     return { ...BLOCK_DEFS[type], ...(preset?.blocks ?? []).find((b) => b.type === type) }
