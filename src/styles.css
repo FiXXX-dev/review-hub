@@ -1,0 +1,357 @@
+:root {
+  --accent: #2563eb;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #17181c;
+  --text-secondary: #5c616b;
+  --text-muted: #9aa0ab;
+  --border: #e6e8ec;
+  --radius: 16px;
+  --shadow: 0 1px 3px rgba(16, 20, 28, 0.06), 0 4px 14px rgba(16, 20, 28, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+.page.center {
+  align-items: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ─── Шапка ─── */
+.header {
+  text-align: center;
+  padding-top: 8px;
+}
+
+.logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  object-fit: cover;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.venue-name {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.welcome {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ─── Кнопки ─── */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.btn-big {
+  min-height: 64px;
+  font-size: 18px;
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.btn-platform {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  min-height: 52px;
+  font-size: 15px;
+  width: 100%;
+}
+
+.btn-copy {
+  background: var(--accent);
+  color: #fff;
+  min-height: 48px;
+  font-size: 15px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.socials {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-social {
+  flex: 1;
+  min-height: 48px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+/* ─── Карточки ─── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+/* ─── Звёзды ─── */
+.stars-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 44px;
+  line-height: 1;
+  padding: 4px;
+  color: #d9dce1;
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+}
+
+.star-on {
+  color: var(--accent);
+  transform: scale(1.15);
+}
+
+.star:active {
+  transform: scale(1.25);
+}
+
+.after-stars {
+  margin-top: 16px;
+  animation: slide-in 0.25s ease;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.after-title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.platforms {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Форма фидбэка ─── */
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback-form textarea,
+.feedback-form input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  resize: vertical;
+}
+
+.feedback-form textarea:focus,
+.feedback-form input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* ─── Спасибо ─── */
+.thanks {
+  text-align: center;
+  padding: 12px 0;
+}
+
+.thanks-emoji {
+  font-size: 44px;
+  margin-bottom: 10px;
+}
+
+.thanks-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.thanks-sub {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ─── Wi-Fi ─── */
+.wifi-card {
+  margin-top: -4px;
+}
+
+.wifi-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.wifi-row + .wifi-row {
+  border-top: 1px solid var(--border);
+}
+
+.wifi-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.wifi-value {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-ligatures: none;
+}
+
+/* ─── Футер ─── */
+.footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.8;
+  padding-bottom: 8px;
+}
+
+.footer a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.powered {
+  margin-top: 6px;
+  opacity: 0.8;
+}
+
+/* ─── Не найдено / загрузка ─── */
+.notfound {
+  text-align: center;
+  padding: 32px;
+}
+
+.notfound-emoji {
+  font-size: 48px;
+  margin-bottom: 14px;
+}
+
+.notfound h1 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.notfound p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
