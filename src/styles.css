@@ -565,3 +565,25 @@ body {
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* ─── Бренд halo ─── */
+.halo-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  color: #1f5bf0;
+}
+
+.halo-mark {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+
+.halo-login-mark {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 4px;
+  display: block;
+}

@@ -325,7 +325,13 @@ export default function VenuePage({ slug }) {
               <a href={`tel:${venue.phone}`}>{venue.phone}</a>
             </div>
           )}
-          <div className="powered">Работает на Review Hub</div>
+          <div className="powered">
+            Работает на{' '}
+            <span className="halo-brand">
+              <img className="halo-mark" src={`${import.meta.env.BASE_URL}halo.svg`} alt="" />
+              halo
+            </span>
+          </div>
         </footer>
       </div>
     </div>

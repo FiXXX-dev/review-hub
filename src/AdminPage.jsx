@@ -87,7 +87,8 @@ function Login() {
   return (
     <div className="page center">
       <form className="card admin-login" onSubmit={submit}>
-        <h1 className="admin-title">Review Hub — админка</h1>
+        <img className="halo-login-mark" src={`${import.meta.env.BASE_URL}halo.svg`} alt="halo" />
+        <h1 className="admin-title">halo — админка</h1>
         <input
           type="email"
           placeholder="Email"

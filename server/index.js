@@ -92,5 +92,5 @@ app.get('*', (_req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`Review Hub listening on :${PORT}`)
+  console.log(`halo listening on :${PORT}`)
 })
