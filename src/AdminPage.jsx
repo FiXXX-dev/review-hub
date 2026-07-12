@@ -18,6 +18,8 @@ const EMPTY_VENUE = {
   address: '',
   owner_telegram_chat_id: '',
   accent_color: '#2563eb',
+  text_color: '',
+  background_image_url: '',
   preset_key: '',
   enabled_blocks: null,
   block_links: {},
@@ -409,7 +411,20 @@ function VenueEditor({ venue, presets, onBack }) {
             </label>
           ))}
 
-          <LogoField form={form} set={set} />
+          <ImageField
+            label="Логотип"
+            value={form.logo_url}
+            onChange={(url) => set('logo_url', url)}
+            filePrefix={form.slug || 'venue'}
+          />
+
+          <ImageField
+            label="Фон страницы"
+            value={form.background_image_url}
+            onChange={(url) => set('background_image_url', url)}
+            filePrefix={`bg-${form.slug || 'venue'}`}
+            hint="Ужимай до ~900px по ширине, лучше webp — быстрее грузится"
+          />
 
           <label className="admin-field">
             <span>Цвет кнопок</span>
@@ -417,6 +432,15 @@ function VenueEditor({ venue, presets, onBack }) {
               type="color"
               value={form.accent_color || '#2563eb'}
               onChange={(e) => set('accent_color', e.target.value)}
+            />
+          </label>
+          <label className="admin-field">
+            <span>Цвет текста (пусто = стандартный тёмный)</span>
+            <input
+              type="text"
+              placeholder="#3E2A20"
+              value={form.text_color ?? ''}
+              onChange={(e) => set('text_color', e.target.value)}
             />
           </label>
           {error && <p className="admin-error">{error}</p>}
@@ -503,8 +527,8 @@ function VenueEditor({ venue, presets, onBack }) {
   )
 }
 
-/* ─── Логотип: загрузка в Supabase Storage (бакет logos) ─── */
-function LogoField({ form, set }) {
+/* ─── Картинка (лого/фон): загрузка в Supabase Storage (бакет logos) ─── */
+function ImageField({ label, value, onChange, filePrefix, hint }) {
   const [uploading, setUploading] = useState(false)
   const [err, setErr] = useState('')
 
@@ -523,8 +547,8 @@ function LogoField({ form, set }) {
     setErr('')
     setUploading(true)
     const ext = (file.name.split('.').pop() || 'png').toLowerCase()
-    const slug = (form.slug || 'venue').trim() || 'venue'
-    const path = `${slug}-${Date.now()}.${ext}`
+    const prefix = (filePrefix || 'venue').trim() || 'venue'
+    const path = `${prefix}-${Date.now()}.${ext}`
     const { error } = await supabase.storage
       .from('logos')
       .upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' })
@@ -538,25 +562,25 @@ function LogoField({ form, set }) {
       return
     }
     const { data } = supabase.storage.from('logos').getPublicUrl(path)
-    set('logo_url', data.publicUrl)
+    onChange(data.publicUrl)
     setUploading(false)
   }
 
   return (
     <div className="admin-field">
-      <span>Логотип</span>
+      <span>{label}</span>
       <div className="logo-upload">
-        {form.logo_url ? (
-          <img className="logo-preview" src={form.logo_url} alt="" />
+        {value ? (
+          <img className="logo-preview" src={value} alt="" />
         ) : (
           <div className="logo-preview logo-preview-empty">—</div>
         )}
         <label className={`btn btn-secondary logo-upload-btn ${uploading ? 'disabled' : ''}`}>
           <input type="file" accept="image/*" onChange={onFile} disabled={uploading} hidden />
-          {uploading ? 'Загружаем…' : form.logo_url ? 'Заменить лого' : 'Загрузить лого'}
+          {uploading ? 'Загружаем…' : value ? 'Заменить' : 'Загрузить'}
         </label>
-        {form.logo_url && (
-          <button type="button" className="btn-link" onClick={() => set('logo_url', '')}>
+        {value && (
+          <button type="button" className="btn-link" onClick={() => onChange('')}>
             Убрать
           </button>
         )}
@@ -564,9 +588,10 @@ function LogoField({ form, set }) {
       <input
         type="text"
         placeholder="…или вставь прямую ссылку на картинку"
-        value={form.logo_url ?? ''}
-        onChange={(e) => set('logo_url', e.target.value)}
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value)}
       />
+      {hint && <p className="admin-hint">{hint}</p>}
       {err && <p className="admin-error">{err}</p>}
     </div>
   )

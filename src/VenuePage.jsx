@@ -29,10 +29,20 @@ async function notifyApi(payload) {
   }
 }
 
+// фон/лого из админки — абсолютные ссылки (Storage); из репо — относительные,
+// резолвим от базового URL, чтобы смена домена ничего не ломала
+function resolveAssetUrl(u) {
+  if (!u) return null
+  return u.startsWith('http') || u.startsWith('/') ? u : import.meta.env.BASE_URL + u
+}
+
 export default function VenuePage({ slug }) {
   const [venue, setVenue] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [bgLoaded, setBgLoaded] = useState(false)
   const scanLogged = useRef(false)
+
+  const bgUrl = resolveAssetUrl(venue?.background_image_url)
 
   useEffect(() => {
     let cancelled = false
@@ -69,10 +79,21 @@ export default function VenuePage({ slug }) {
     if (venue?.accent_color) {
       document.documentElement.style.setProperty('--accent', venue.accent_color)
     }
+    if (venue?.text_color) {
+      document.documentElement.style.setProperty('--text', venue.text_color)
+    }
     if (venue?.name) {
       document.title = venue.name
     }
   }, [venue])
+
+  // фон появляется плавно и только после полной загрузки — без мигания
+  useEffect(() => {
+    if (!bgUrl) return
+    const img = new Image()
+    img.onload = () => setBgLoaded(true)
+    img.src = bgUrl
+  }, [bgUrl])
 
   if (loading) {
     return (
@@ -133,7 +154,14 @@ export default function VenuePage({ slug }) {
   }
 
   return (
-    <div className="page">
+    <div className={`page ${bgUrl ? 'with-bg' : ''}`}>
+      {bgUrl && (
+        <div
+          className="bg-layer"
+          style={{ backgroundImage: `url(${bgUrl})`, opacity: bgLoaded ? 1 : 0 }}
+          aria-hidden="true"
+        />
+      )}
       <div className="container">
         <header className="header">
           {venue.logo_url && (
