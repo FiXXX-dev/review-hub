@@ -1277,3 +1277,14 @@ body {
   --text-secondary: #3f4450;
   --text-muted: #525864;
 }
+
+.pairing-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.pairing-actions .btn-link {
+  font-size: 13px;
+  padding: 2px 0;
+}

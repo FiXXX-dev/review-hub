@@ -371,18 +371,7 @@ function VenueEditor({ venue, presets, onBack }) {
         </div>
         <h1 className="admin-title">{isNew ? 'Новое заведение' : form.name}</h1>
 
-        {!isNew && venue.pairing_code && (
-          <div className="card pairing-card">
-            <div>
-              <div className="pairing-label">Код подключения к Telegram-боту</div>
-              <div className="pairing-hint">
-                Сотрудник пишет боту halo /start и вводит этот код — начнёт получать отзывы и
-                заявки. /stats — сводка, /stop — отписка.
-              </div>
-            </div>
-            <div className="pairing-code">{venue.pairing_code}</div>
-          </div>
-        )}
+        {!isNew && <PairingCard venue={venue} />}
 
         <form className="card admin-form" onSubmit={save}>
           <label className="admin-field">
@@ -704,6 +693,76 @@ function ImageField({ label, value, onChange, filePrefix, hint }) {
       />
       {hint && <p className="admin-hint">{hint}</p>}
       {err && <p className="admin-error">{err}</p>}
+    </div>
+  )
+}
+
+/* ─── Код подключения к Telegram-боту ─── */
+function PairingCard({ venue }) {
+  const [code, setCode] = useState(venue.pairing_code || null)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState('')
+
+  async function regenerate() {
+    if (busy) return
+    if (code && !confirm('Старый код перестанет действовать (уже подключённые сотрудники останутся). Сгенерировать новый?')) {
+      return
+    }
+    setBusy(true)
+    setError('')
+    // код генерирует функция в базе — тот же формат, что и у триггера
+    const { data: newCode, error: rpcErr } = await supabase.rpc('gen_pairing_code', {
+      p_slug: venue.slug,
+    })
+    if (rpcErr || !newCode) {
+      setError('Не получилось сгенерировать код — выполни миграцию 0010 в Supabase')
+      setBusy(false)
+      return
+    }
+    const { error: updErr } = await supabase
+      .from('venues')
+      .update({ pairing_code: newCode })
+      .eq('id', venue.id)
+    if (updErr) {
+      setError(`Не сохранилось: ${updErr.message}`)
+    } else {
+      setCode(newCode)
+    }
+    setBusy(false)
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <div className="card pairing-card">
+      <div>
+        <div className="pairing-label">Код подключения к Telegram-боту</div>
+        <div className="pairing-hint">
+          Сотрудник пишет боту halo /start и вводит этот код — начнёт получать отзывы и заявки.
+          /stats — сводка, /stop — отписка.
+        </div>
+        {error && <p className="admin-error">{error}</p>}
+        <div className="pairing-actions">
+          {code && (
+            <button type="button" className="btn-link" onClick={copy}>
+              {copied ? '✓ Скопирован' : 'Скопировать'}
+            </button>
+          )}
+          <button type="button" className="btn-link" onClick={regenerate} disabled={busy}>
+            {busy ? 'Генерируем…' : code ? 'Новый код' : 'Сгенерировать код'}
+          </button>
+        </div>
+      </div>
+      {code && <div className="pairing-code">{code}</div>}
     </div>
   )
 }
