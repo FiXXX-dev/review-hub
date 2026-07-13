@@ -3,6 +3,7 @@ import VenuePage from './VenuePage.jsx'
 import AdminPage from './AdminPage.jsx'
 import RoomLinksPage from './RoomLinksPage.jsx'
 import ServicesAdminPage from './ServicesAdminPage.jsx'
+import LandingPage from './LandingPage.jsx'
 
 function getSlug() {
   // не привязываемся к началу пути: на GitHub Pages сайт живёт под /review-hub/
@@ -25,17 +26,7 @@ export default function App() {
 
   const slug = getSlug()
 
-  if (!slug) {
-    return (
-      <div className="page center">
-        <div className="notfound">
-          <div className="notfound-emoji">🔍</div>
-          <h1>Заведение не найдено</h1>
-          <p>Проверьте ссылку или отсканируйте QR-код ещё раз.</p>
-        </div>
-      </div>
-    )
-  }
-
-  return <VenuePage slug={slug} />
+  // страница заведения — только /v/:slug («не найдено» показывает она сама,
+  // если slug не существует); всё остальное, включая корень, — лендинг halo
+  return slug ? <VenuePage slug={slug} /> : <LandingPage />
 }
