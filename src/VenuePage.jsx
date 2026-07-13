@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { Sparkles, Bed, GlassWater, Clock, Wrench, Car, Coffee, Shirt, BellRing } from 'lucide-react'
+import {
+  Sparkles, Bed, GlassWater, Clock, Wrench, Car, Coffee, Shirt, BellRing,
+  Star, Wifi, MapPin, Phone, BookOpen, Calendar, Info, Send, Camera,
+  Scissors, Stethoscope, ShoppingBag, Wallet,
+} from 'lucide-react'
 import { supabase } from './lib/supabase.js'
 import {
   blockUrl,
@@ -24,6 +28,31 @@ const SERVICE_ICONS = {
   bell: BellRing,
 }
 
+// Иконки кнопок блоков: только lucide, эмодзи из пресетов игнорируются
+const BLOCK_TYPE_ICONS = {
+  rating: Star,
+  wifi: Wifi,
+  service: BellRing,
+  services: BellRing,
+  taxi: Car,
+  contacts: MapPin,
+  phone: Phone,
+  menu: BookOpen,
+  appointment: Calendar,
+  price: Wallet,
+  doctors: Stethoscope,
+  masters: Scissors,
+  catalog: ShoppingBag,
+  instagram: Camera,
+  telegram: Send,
+  info: Info,
+}
+
+function BlockIcon({ type, size = 22 }) {
+  const Ic = BLOCK_TYPE_ICONS[type] ?? Info
+  return <Ic size={size} strokeWidth={1.9} className="btn-icon" />
+}
+
 function SvcIcon({ icon, size = 22 }) {
   const Ic = SERVICE_ICONS[icon]
   if (Ic) return <Ic className="service-icon" size={size} strokeWidth={1.8} />
@@ -32,9 +61,9 @@ function SvcIcon({ icon, size = 22 }) {
 }
 
 const PLATFORMS = [
-  { key: 'yandex', label: 'Яндекс.Карты', urlField: 'yandex_review_url', icon: '🟡' },
-  { key: 'google', label: 'Google Карты', urlField: 'google_review_url', icon: '🔵' },
-  { key: '2gis', label: '2ГИС', urlField: 'gis2_review_url', icon: '🟢' },
+  { key: 'yandex', label: 'Яндекс.Карты', urlField: 'yandex_review_url', color: '#FC3F1D' },
+  { key: 'google', label: 'Google Карты', urlField: 'google_review_url', color: '#4285F4' },
+  { key: '2gis', label: '2ГИС', urlField: 'gis2_review_url', color: '#19AA1E' },
 ]
 
 // Уведомление — best effort, посетителя не блокируем.
@@ -187,7 +216,7 @@ export default function VenuePage({ slug }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                {g.icon} {g.label}
+                <BlockIcon type={g.type} size={18} /> {g.label}
               </a>
             ))}
           </div>
@@ -271,7 +300,7 @@ function renderBlock(block, venue, room, setRoom) {
     case 'phone':
       return venue.phone ? (
         <a key={type} className="btn btn-secondary" href={`tel:${venue.phone}`}>
-          {block.icon} {block.label}
+          <BlockIcon type={block.type} /> {block.label}
         </a>
       ) : null
     default: {
@@ -279,7 +308,7 @@ function renderBlock(block, venue, room, setRoom) {
       const url = blockUrl(venue, type)
       return url ? (
         <a key={type} className="btn btn-secondary" href={url} target="_blank" rel="noreferrer">
-          {block.icon} {block.label}
+          <BlockIcon type={block.type} /> {block.label}
         </a>
       ) : null
     }
@@ -357,7 +386,7 @@ function RatingBlock({ block, venue, room }) {
   if (!open) {
     return (
       <button className="btn btn-primary btn-big" onClick={() => setOpen(true)}>
-        {block.icon} {block.label}
+        <BlockIcon type={block.type} /> {block.label}
       </button>
     )
   }
@@ -391,7 +420,7 @@ function RatingBlock({ block, venue, room }) {
               <div className="platforms">
                 {availablePlatforms.map((p) => (
                   <button key={p.key} className="btn btn-platform" onClick={() => goToPlatform(p)}>
-                    {p.icon} {p.label}
+                    <span className="platform-dot" style={{ background: p.color }} /> {p.label}
                   </button>
                 ))}
               </div>
@@ -451,7 +480,7 @@ function WifiBlock({ block, venue }) {
   return (
     <>
       <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
-        {block.icon} {block.label}
+        <BlockIcon type={block.type} /> {block.label}
       </button>
       {open && (
         <div className="card wifi-card">
@@ -507,7 +536,7 @@ function AppointmentBlock({ block, venue, room }) {
   return (
     <>
       <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
-        {block.icon} {block.label}
+        <BlockIcon type={block.type} /> {block.label}
       </button>
       {open && (
         <div className="card">
@@ -566,7 +595,7 @@ function ContactsBlock({ block, venue }) {
   return (
     <>
       <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
-        {block.icon} {block.label}
+        <BlockIcon type={block.type} /> {block.label}
       </button>
       {open && (
         <div className="card wifi-card">
@@ -631,7 +660,7 @@ function TaxiBlock({ block, venue, room, setRoom }) {
   return (
     <>
       <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
-        {block.icon} {block.label}
+        <BlockIcon type={block.type} /> {block.label}
       </button>
       {open && (
         <div className="card">
@@ -791,7 +820,7 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
   return (
     <>
       <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
-        {block.icon} {block.label}
+        <BlockIcon type={block.type} /> {block.label}
       </button>
       {open && (
         <div className="card">
