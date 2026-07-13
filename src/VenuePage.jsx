@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { Sparkles, Bed, GlassWater, Clock, Wrench, Car } from 'lucide-react'
+import { Sparkles, Bed, GlassWater, Clock, Wrench, Car, Coffee, Shirt, BellRing } from 'lucide-react'
 import { supabase } from './lib/supabase.js'
 import {
   blockUrl,
@@ -10,13 +10,25 @@ import {
   formatPrice,
 } from './lib/blocks.js'
 
+// Иконки услуг: ключ хранится в services.icon (или в ключе плитки).
+// Неизвестное значение рендерится как текст (эмодзи), пусто — колокольчик.
 const SERVICE_ICONS = {
   cleaning: Sparkles,
   towels: Bed,
   water: GlassWater,
+  breakfast: Coffee,
+  laundry: Shirt,
   late_checkout: Clock,
   broken: Wrench,
   taxi: Car,
+  bell: BellRing,
+}
+
+function SvcIcon({ icon, size = 22 }) {
+  const Ic = SERVICE_ICONS[icon]
+  if (Ic) return <Ic className="service-icon" size={size} strokeWidth={1.8} />
+  if (icon) return <span className="svc-icon">{icon}</span>
+  return <BellRing className="service-icon" size={size} strokeWidth={1.8} />
 }
 
 const PLATFORMS = [
@@ -233,10 +245,8 @@ function renderBlock(block, venue, room, setRoom) {
     case 'appointment':
       return <AppointmentBlock key={type} block={block} venue={venue} room={room} />
     case 'service':
-      return (
-        <ServiceBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} />
-      )
     case 'services':
+      // одна реализация: плитки с ценами из каталога services
       return (
         <ServicesCatalogBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} />
       )
@@ -568,122 +578,6 @@ function ContactsBlock({ block, venue }) {
   )
 }
 
-/* ─── Обслуживание номера (отели) ─── */
-function ServiceBlock({ block, venue, room, setRoom }) {
-  const [open, setOpen] = useState(false)
-  const [roomInput, setRoomInput] = useState('')
-  const [commentFor, setCommentFor] = useState(null) // ключ запроса с открытым комментарием
-  const [comment, setComment] = useState('')
-  const [sending, setSending] = useState(null) // ключ отправляемого запроса
-  const [done, setDone] = useState(false)
-
-  const enabledKeys = Array.isArray(venue.service_options) ? venue.service_options : null
-  const options = SERVICE_OPTIONS.filter((o) => !enabledKeys || enabledKeys.includes(o.key))
-  const effectiveRoom = room || roomInput.trim()
-
-  async function send(option) {
-    if (!effectiveRoom || sending) return
-    if (option.comment && commentFor !== option.key) {
-      // сначала раскрываем поле комментария, отправка — второй кнопкой
-      setCommentFor(option.key)
-      return
-    }
-    setSending(option.key)
-    if (!room && roomInput.trim()) setRoom(roomInput.trim().slice(0, 20))
-    const row = {
-      venue_id: venue.id,
-      room: effectiveRoom.slice(0, 20),
-      request_type: option.key,
-      comment: option.comment && comment.trim() ? comment.trim() : null,
-    }
-    await supabase.from('service_requests').insert(row)
-    await notifyApi({ type: 'service', ...row })
-    setSending(null)
-    setDone(true)
-  }
-
-  return (
-    <>
-      <button className="btn btn-secondary" onClick={() => setOpen(!open)}>
-        {block.icon} {block.label}
-      </button>
-      {open && (
-        <div className="card">
-          {done ? (
-            <div className="thanks">
-              <div className="thanks-emoji">🛎️</div>
-              <p className="thanks-title">Заявка принята!</p>
-              <p className="thanks-sub">Скоро подойдём.</p>
-              <button
-                type="button"
-                className="btn-link"
-                onClick={() => {
-                  setDone(false)
-                  setCommentFor(null)
-                  setComment('')
-                }}
-              >
-                Отправить ещё запрос
-              </button>
-            </div>
-          ) : (
-            <div className="service-body">
-              {!room && (
-                <input
-                  className="service-room-input"
-                  type="text"
-                  placeholder="Номер комнаты"
-                  value={roomInput}
-                  onChange={(e) => setRoomInput(e.target.value)}
-                />
-              )}
-              {room && <p className="service-room-label">Номер {room}</p>}
-              <div className="service-grid">
-                {options.map((o) => {
-                  const Icon = SERVICE_ICONS[o.key]
-                  return (
-                    <button
-                      key={o.key}
-                      type="button"
-                      className={`service-tile ${commentFor === o.key ? 'active' : ''}`}
-                      disabled={!effectiveRoom || !!sending}
-                      onClick={() => send(o)}
-                    >
-                      {Icon && <Icon className="service-icon" size={22} strokeWidth={1.8} />}
-                      <span>{o.label_ru}</span>
-                    </button>
-                  )
-                })}
-              </div>
-              {!effectiveRoom && (
-                <p className="service-hint">Укажите номер комнаты, чтобы отправить запрос</p>
-              )}
-              {commentFor && (
-                <div className="service-comment">
-                  <textarea
-                    placeholder="Что случилось? Например: не работает кондиционер"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    rows={3}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={!effectiveRoom || !!sending}
-                    onClick={() => send(SERVICE_OPTIONS.find((o) => o.key === commentFor))}
-                  >
-                    {sending ? 'Отправляем…' : 'Отправить'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  )
-}
-
 /* ─── Такси: форма вызова ─── */
 function TaxiBlock({ block, venue, room, setRoom }) {
   const [open, setOpen] = useState(false)
@@ -807,7 +701,7 @@ function TaxiBlock({ block, venue, room, setRoom }) {
   )
 }
 
-/* ─── Каталог услуг с ценами ─── */
+/* ─── Обслуживание номера: плитки с ценами из каталога services ─── */
 function ServicesCatalogBlock({ block, venue, room, setRoom }) {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState(null) // null = ещё не загружали
@@ -828,12 +722,39 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
       .eq('venue_id', venue.id)
       .eq('is_active', true)
       .order('sort_order')
-      .then(({ data }) => setItems(data ?? []))
-  }, [open, items, venue.id])
+      .then(({ data, error }) => {
+        if (error || !data?.length) {
+          // каталог пуст (или миграция не применена) — плитки быстрых
+          // запросов по-старому, из встроенного списка
+          setItems(
+            SERVICE_OPTIONS.filter(
+              (o) => !Array.isArray(venue.service_options) || venue.service_options.includes(o.key)
+            ).map((o) => ({
+              id: o.key,
+              title_ru: o.label_ru,
+              icon: o.key,
+              price: null,
+              is_free: false, // без бейджа цены в легаси-режиме
+              require_comment: !!o.comment,
+              legacy: true,
+            }))
+          )
+          return
+        }
+        setItems(data)
+      })
+  }, [open, items, venue.id, venue.service_options])
 
   function priceLabel(s) {
+    if (s.legacy) return null
     if (s.is_free || s.price == null) return 'Бесплатно'
     return formatPrice(s.price)
+  }
+
+  function pick(s) {
+    setSelected(s)
+    setComment('')
+    setTime('')
   }
 
   async function submit(e) {
@@ -845,7 +766,7 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
     const row = {
       venue_id: venue.id,
       room: effectiveRoom.slice(0, 20),
-      request_type: selected.title_ru,
+      request_type: selected.legacy ? selected.id : selected.title_ru,
       comment: comment.trim() ? comment.trim().slice(0, 500) : null,
       preferred_time: time.trim() ? time.trim().slice(0, 40) : null,
     }
@@ -873,8 +794,6 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
                 onClick={() => {
                   setDone(false)
                   setSelected(null)
-                  setComment('')
-                  setTime('')
                 }}
               >
                 Заказать ещё
@@ -885,39 +804,61 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
           ) : items.length === 0 ? (
             <p className="service-hint">Список услуг пока пуст</p>
           ) : !selected ? (
-            <div className="svc-list">
-              {items.map((s) => (
-                <button key={s.id} type="button" className="svc-item" onClick={() => setSelected(s)}>
-                  <span className="svc-title">
-                    {s.icon && <span className="svc-icon">{s.icon}</span>}
-                    {s.title_ru}
-                  </span>
-                  <span className={`svc-price ${s.is_free || s.price == null ? 'free' : ''}`}>
-                    {priceLabel(s)}
-                  </span>
-                </button>
-              ))}
+            <div className="service-body">
+              {!room && (
+                <input
+                  className="service-room-input"
+                  type="text"
+                  placeholder="Номер комнаты"
+                  value={roomInput}
+                  onChange={(e) => setRoomInput(e.target.value)}
+                />
+              )}
+              {room && <p className="service-room-label">Номер {room}</p>}
+              <div className="service-grid">
+                {items.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="service-tile"
+                    disabled={!effectiveRoom}
+                    onClick={() => pick(s)}
+                  >
+                    <SvcIcon icon={s.icon} />
+                    <span>{s.title_ru}</span>
+                    {priceLabel(s) && (
+                      <span
+                        className={`service-tile-price ${
+                          s.is_free || s.price == null ? 'free' : ''
+                        }`}
+                      >
+                        {priceLabel(s)}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {!effectiveRoom && (
+                <p className="service-hint">Укажите номер комнаты, чтобы отправить запрос</p>
+              )}
             </div>
           ) : (
             <form className="feedback-form" onSubmit={submit}>
               <div className="svc-selected">
                 <span className="svc-title">
-                  {selected.icon && <span className="svc-icon">{selected.icon}</span>}
+                  <SvcIcon icon={selected.icon} size={18} />
                   {selected.title_ru}
                 </span>
-                <span className={`svc-price ${selected.is_free || selected.price == null ? 'free' : ''}`}>
-                  {priceLabel(selected)}
-                </span>
+                {priceLabel(selected) && (
+                  <span
+                    className={`svc-price ${
+                      selected.is_free || selected.price == null ? 'free' : ''
+                    }`}
+                  >
+                    {priceLabel(selected)}
+                  </span>
+                )}
               </div>
-              {!room && (
-                <input
-                  type="text"
-                  placeholder="Номер комнаты"
-                  value={roomInput}
-                  onChange={(e) => setRoomInput(e.target.value)}
-                  required
-                />
-              )}
               <textarea
                 placeholder={
                   selected.require_comment
@@ -945,7 +886,7 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
                 {sending ? 'Отправляем…' : 'Заказать'}
               </button>
               <button type="button" className="btn-link" onClick={() => setSelected(null)}>
-                ← К списку услуг
+                ← К списку
               </button>
             </form>
           )}

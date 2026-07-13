@@ -77,6 +77,15 @@ export function resolveBlocks(venue) {
 
   if (!types.includes('rating')) types.unshift('rating')
 
+  // 'service' и 'services' — одна фича двух поколений (плитки → каталог).
+  // Если включены оба, показываем один блок на позиции первого,
+  // с подписью «Обслуживание номера» (вид, который выбрал владелец).
+  if (types.includes('service') && types.includes('services')) {
+    const first = Math.min(types.indexOf('service'), types.indexOf('services'))
+    types = types.filter((t) => t !== 'service' && t !== 'services')
+    types.splice(first, 0, 'service')
+  }
+
   return types
     .filter((t, i) => defs[t] && types.indexOf(t) === i)
     .map((t) => ({ type: t, label: defs[t].label_ru, icon: defs[t].icon }))

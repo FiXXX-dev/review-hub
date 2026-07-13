@@ -998,3 +998,40 @@ body {
 .svc-admin-actions .danger {
   color: #dc2626;
 }
+
+.service-tile-price {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.service-tile-price.free {
+  color: #059669;
+  background: #ecfdf5;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.svc-admin-icon-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.svc-admin-icon-select {
+  width: 130px;
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+}

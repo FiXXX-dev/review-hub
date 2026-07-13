@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react'
+import { Sparkles, Bed, GlassWater, Clock, Wrench, Car, Coffee, Shirt, BellRing } from 'lucide-react'
 import { supabase } from './lib/supabase.js'
 import { formatPrice } from './lib/blocks.js'
+
+const ICON_OPTIONS = [
+  { key: 'bell', label: 'Колокольчик', Icon: BellRing },
+  { key: 'cleaning', label: 'Уборка', Icon: Sparkles },
+  { key: 'towels', label: 'Кровать / бельё', Icon: Bed },
+  { key: 'water', label: 'Вода', Icon: GlassWater },
+  { key: 'breakfast', label: 'Завтрак / кофе', Icon: Coffee },
+  { key: 'laundry', label: 'Прачечная', Icon: Shirt },
+  { key: 'late_checkout', label: 'Часы', Icon: Clock },
+  { key: 'broken', label: 'Ремонт', Icon: Wrench },
+  { key: 'taxi', label: 'Такси', Icon: Car },
+]
 
 // Управление услугами заведения: /admin/services/:slug
 // ПОКА без авторизации (по требованию) — доступ по прямой ссылке.
@@ -144,13 +157,25 @@ export default function ServicesAdminPage({ slug }) {
             return (
               <div key={s.id} className={`svc-admin-row ${d.is_active ? '' : 'inactive'}`}>
                 <div className="svc-admin-line">
-                  <input
-                    className="svc-admin-icon"
-                    type="text"
-                    placeholder="🧹"
-                    value={d.icon}
+                  <span className="svc-admin-icon-preview">
+                    {(() => {
+                      const opt = ICON_OPTIONS.find((o) => o.key === d.icon)
+                      if (opt) return <opt.Icon size={20} strokeWidth={1.8} />
+                      return d.icon ? <span>{d.icon}</span> : <BellRing size={20} strokeWidth={1.8} />
+                    })()}
+                  </span>
+                  <select
+                    className="svc-admin-icon-select"
+                    value={ICON_OPTIONS.some((o) => o.key === d.icon) ? d.icon : ''}
                     onChange={(e) => setDraft(s.id, 'icon', e.target.value)}
-                  />
+                  >
+                    <option value="">{d.icon && !ICON_OPTIONS.some((o) => o.key === d.icon) ? `эмодзи: ${d.icon}` : 'без иконки'}</option>
+                    {ICON_OPTIONS.map((o) => (
+                      <option key={o.key} value={o.key}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     className="svc-admin-title"
                     type="text"
