@@ -20,9 +20,9 @@ import {
 } from 'lucide-react'
 
 // ─── Контакты halo: поменяй на свои ───
-const TELEGRAM_URL = 'https://t.me/halo_uz' // ← твой Telegram
-const PHONE = '+998 90 000-00-00' // ← твой телефон
-const INSTAGRAM_URL = '' // ← Instagram halo (пусто = кнопка скрыта)
+const TELEGRAM_URL = 'https://t.me/bangbangrs'
+const PHONE = '+998 95 183-66-36'
+const INSTAGRAM_URL = '' // Instagram halo (пусто = кнопка скрыта)
 
 const PROBLEMS = [
   { Icon: AlertTriangle, text: 'Один злой отзыв в Яндексе отпугивает десятки клиентов' },
