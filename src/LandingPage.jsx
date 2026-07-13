@@ -1,13 +1,10 @@
 import React, { useEffect } from 'react'
 import {
-  AlertTriangle,
-  VolumeX,
-  Eye,
+  Star,
   Wifi,
   BookOpen,
   BellRing,
   Car,
-  Calendar,
   BarChart3,
   Hotel,
   Coffee,
@@ -24,25 +21,18 @@ const TELEGRAM_URL = 'https://t.me/bangbangrs'
 const PHONE = '+998 95 183-66-36'
 const INSTAGRAM_URL = '' // Instagram halo (пусто = кнопка скрыта)
 
-const PROBLEMS = [
-  { Icon: AlertTriangle, text: 'Один злой отзыв в Яндексе отпугивает десятки клиентов' },
-  { Icon: VolumeX, text: 'Довольные гости молчат — они не помнят про отзыв' },
-  { Icon: Eye, text: 'О проблеме вы узнаёте, когда её уже прочитали все' },
-]
-
 const STEPS = [
   'Гость прикладывает телефон к табличке',
-  'Открывается страница вашего заведения',
-  'Оценка 4–5 звёзд → гость идёт на Яндекс / Google / 2ГИС',
-  'Оценка 1–3 → жалоба приходит вам в Telegram, а не в интернет',
+  'Открывается страница вашего заведения — без приложений и QR-сканеров',
+  'Гость сам подключается к Wi-Fi, заказывает услуги, вызывает такси или оставляет отзыв',
 ]
 
 const FEATURES = [
   { Icon: Wifi, text: 'Wi-Fi без вопросов персоналу' },
-  { Icon: BookOpen, text: 'Меню и прайс' },
   { Icon: BellRing, text: 'Обслуживание номера' },
   { Icon: Car, text: 'Вызов такси' },
-  { Icon: Calendar, text: 'Запись на приём' },
+  { Icon: BookOpen, text: 'Меню и прайс' },
+  { Icon: Star, text: 'Отзывы на карты в один тап' },
   { Icon: BarChart3, text: 'Статистика сканов' },
 ]
 
@@ -56,7 +46,7 @@ const AUDIENCE = [
 
 export default function LandingPage() {
   useEffect(() => {
-    document.title = 'halo — умная NFC-табличка для заведений'
+    document.title = 'halo — универсальные NFC-таблички'
     document.documentElement.style.setProperty('--accent', '#1B62F0')
   }, [])
 
@@ -71,10 +61,10 @@ export default function LandingPage() {
             <img src={`${base}halo.svg`} alt="" />
             <span>halo</span>
           </div>
-          <h1>Защитите репутацию вашего заведения</h1>
+          <h1>Универсальные NFC-таблички для вашего заведения</h1>
           <p className="landing-sub">
-            Умная NFC-табличка: довольные гости идут оставлять отзывы на карты, недовольные —
-            пишут напрямую вам, а не в интернет
+            Гость прикладывает телефон — и видит страницу вашего заведения: Wi-Fi, меню,
+            обслуживание, такси. Одна табличка вместо стопки бумажек на стойке
           </p>
           <div className="landing-cta">
             <a className="btn btn-primary btn-big" href={`${base}v/demo`}>
@@ -85,19 +75,6 @@ export default function LandingPage() {
             </a>
           </div>
         </header>
-
-        {/* ─── ПРОБЛЕМА ─── */}
-        <section className="landing-section">
-          <h2>Почему это важно</h2>
-          <div className="landing-cards">
-            {PROBLEMS.map(({ Icon, text }) => (
-              <div className="card landing-card" key={text}>
-                <Icon size={26} strokeWidth={1.8} className="landing-card-icon" />
-                <p>{text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
 
         {/* ─── КАК РАБОТАЕТ ─── */}
         <section className="landing-section">
@@ -114,7 +91,7 @@ export default function LandingPage() {
 
         {/* ─── ЧТО ЕЩЁ УМЕЕТ ─── */}
         <section className="landing-section">
-          <h2>Что ещё умеет</h2>
+          <h2>Что умеет табличка</h2>
           <div className="landing-grid">
             {FEATURES.map(({ Icon, text }) => (
               <div className="landing-grid-item" key={text}>
