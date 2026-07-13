@@ -26,7 +26,7 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
-          VITE_BASE: /review-hub/
+          VITE_BASE: /halo-project/
           # anon-ключ публичный по дизайну (уходит в браузер), защита — RLS
           VITE_SUPABASE_URL: https://pykqdzitrsluagjrqhhu.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB5a3Fkeml0cnNsdWFnanJxaGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4MzE3ODUsImV4cCI6MjA5OTQwNzc4NX0.875qMJTAKIAPTMG-wQgw_geUrKqKNNFJYjTAPPMQhqQ
