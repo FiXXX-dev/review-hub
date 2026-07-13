@@ -85,13 +85,25 @@ export default function VenuePage({ slug }) {
         setLoading(false)
         return
       }
-      // пресет подтягиваем вместе с заведением; если миграция пресетов
-      // ещё не применена — фолбэк на плоский select
+      // anon видит только публичные колонки (pairing_code закрыт грантами),
+      // поэтому явный список; фолбэки — на случай неприменённых миграций
+      const VENUE_COLUMNS =
+        'id, slug, name, logo_url, welcome_text, yandex_review_url, google_review_url, ' +
+        'gis2_review_url, menu_url, wifi_ssid, wifi_password, instagram_url, telegram_url, ' +
+        'phone, address, accent_color, text_color, background_image_url, preset_key, ' +
+        'enabled_blocks, block_links, service_options, rating_platform_order, taxi_classes'
       let { data, error } = await supabase
         .from('venues')
-        .select('*, preset:presets(*)')
+        .select(`${VENUE_COLUMNS}, preset:presets(*)`)
         .eq('slug', slug)
         .maybeSingle()
+      if (error) {
+        ;({ data, error } = await supabase
+          .from('venues')
+          .select(VENUE_COLUMNS)
+          .eq('slug', slug)
+          .maybeSingle())
+      }
       if (error) {
         ;({ data } = await supabase.from('venues').select('*').eq('slug', slug).maybeSingle())
       }

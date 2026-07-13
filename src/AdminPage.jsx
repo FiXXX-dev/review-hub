@@ -16,7 +16,6 @@ const EMPTY_VENUE = {
   telegram_url: '',
   phone: '',
   address: '',
-  owner_telegram_chat_id: '',
   accent_color: '#2563eb',
   text_color: '',
   background_image_url: '',
@@ -40,7 +39,6 @@ const FIELDS = [
   { key: 'telegram_url', label: 'Telegram (URL)' },
   { key: 'phone', label: 'Телефон' },
   { key: 'address', label: 'Адрес' },
-  { key: 'owner_telegram_chat_id', label: 'Telegram chat_id владельца (для уведомлений)' },
 ]
 
 function venueToForm(v) {
@@ -372,6 +370,19 @@ function VenueEditor({ venue, presets, onBack }) {
           )}
         </div>
         <h1 className="admin-title">{isNew ? 'Новое заведение' : form.name}</h1>
+
+        {!isNew && venue.pairing_code && (
+          <div className="card pairing-card">
+            <div>
+              <div className="pairing-label">Код подключения к Telegram-боту</div>
+              <div className="pairing-hint">
+                Сотрудник пишет боту halo /start и вводит этот код — начнёт получать отзывы и
+                заявки. /stats — сводка, /stop — отписка.
+              </div>
+            </div>
+            <div className="pairing-code">{venue.pairing_code}</div>
+          </div>
+        )}
 
         <form className="card admin-form" onSubmit={save}>
           <label className="admin-field">

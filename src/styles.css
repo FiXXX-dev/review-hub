@@ -1035,3 +1035,36 @@ body {
   background: var(--bg);
   color: var(--text);
 }
+
+/* ─── Код привязки бота ─── */
+.pairing-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.pairing-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pairing-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.pairing-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent);
+  background: var(--bg);
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  padding: 10px 14px;
+  white-space: nowrap;
+}

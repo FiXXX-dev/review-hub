@@ -79,14 +79,20 @@ Deno.serve(async (req) => {
     )
     const { data: venue, error } = await supabase
       .from('venues')
-      .select('id, name, owner_telegram_chat_id')
+      .select('id, name')
       .eq('id', venue_id)
       .maybeSingle()
     if (error || !venue) return json({ error: 'venue not found' }, 404)
 
     const token = Deno.env.get('TELEGRAM_BOT_TOKEN')
-    // нет chat_id или токена — данные уже в базе, выходим без ошибки
-    if (!venue.owner_telegram_chat_id || !token) return json({ ok: true, sent: false })
+    // получатели — все активные подписчики заведения (бот halo, /start + код)
+    const { data: subs } = await supabase
+      .from('venue_subscribers')
+      .select('id, chat_id')
+      .eq('venue_id', venue.id)
+      .eq('is_active', true)
+    // нет подписчиков или токена — данные уже в базе, выходим без ошибки
+    if (!token || !subs?.length) return json({ ok: true, sent: false })
 
     const roomNote = room && String(room).trim() ? `\nНомер: ${String(room).trim().slice(0, 20)}` : ''
     const clean = (v: unknown, n: number) => (v ? String(v).trim().slice(0, n) : '')
@@ -112,14 +118,26 @@ Deno.serve(async (req) => {
               (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
             }${roomNote}`
 
-    const tg = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: venue.owner_telegram_chat_id, text }),
-    })
-    if (!tg.ok) console.error('telegram error:', tg.status, await tg.text())
+    let sent = 0
+    await Promise.all(
+      subs.map(async (s) => {
+        const tg = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: s.chat_id, text }),
+        })
+        if (tg.ok) {
+          sent++
+        } else if (tg.status === 403) {
+          // пользователь заблокировал бота — тихо деактивируем подписку
+          await supabase.from('venue_subscribers').update({ is_active: false }).eq('id', s.id)
+        } else {
+          console.error('telegram error:', tg.status, await tg.text())
+        }
+      }),
+    )
 
-    return json({ ok: true, sent: tg.ok })
+    return json({ ok: true, sent })
   } catch (err) {
     console.error('notify error:', err)
     return json({ error: 'internal error' }, 500)

@@ -30,12 +30,27 @@ npm start              # backend на :3000 (в другом терминале,
 
 RLS: anon может читать `venues` и вставлять в `ratings` / `feedback` / `scans`. Обновление `ratings.redirected_to` делает бэкенд сервисным ключом.
 
-## Настройка Telegram
+## Telegram-бот halo
 
-1. Создать бота через [@BotFather](https://t.me/BotFather), взять токен → `TELEGRAM_BOT_TOKEN`.
-2. Владелец заведения пишет боту `/start` (иначе бот не сможет отправить ему сообщение).
-3. Узнать chat_id владельца (например, через `https://api.telegram.org/bot<TOKEN>/getUpdates`) и записать его в `venues.owner_telegram_chat_id`.
-4. Если `owner_telegram_chat_id` пуст — фидбэк просто сохраняется в базе, ничего не падает.
+Один бот на всех клиентов. Уведомления (низкие оценки, заявки на обслуживание, такси, записи) рассылаются **всем активным подписчикам** заведения из `venue_subscribers` — владельцу, управляющему, ресепшену.
+
+**Подключение сотрудника:** пишет боту `/start` → вводит код заведения (`venues.pairing_code`, вида `BON-4821`, показан в админке) → готово. `/stats` — сводка за 7 дней (сканы, средняя оценка, перехваченный негатив, заявки), `/stop` — отписка. Если пользователь заблокировал бота, подписка тихо деактивируется (`is_active = false`).
+
+**Развёртывание бота (один раз):**
+
+1. Создай бота у [@BotFather](https://t.me/BotFather), получи токен.
+2. Supabase → Edge Functions → задеплой две функции из `supabase/functions/`:
+   - `notify` — рассылка уведомлений со страницы;
+   - `telegram-bot` — webhook бота (**выключи Enforce JWT verification** — Telegram шлёт запросы без токена).
+3. Edge Functions → Secrets: `TELEGRAM_BOT_TOKEN` = токен, `TELEGRAM_WEBHOOK_SECRET` = любая случайная строка.
+4. Подключи webhook:
+   ```bash
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+     -d "url=https://<project>.supabase.co/functions/v1/telegram-bot" \
+     -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+   ```
+
+`pairing_code` закрыт от анонимного чтения колонковыми грантами (миграция 0010) — публичная страница запрашивает явный список полей.
 
 ## Деплой на Railway
 

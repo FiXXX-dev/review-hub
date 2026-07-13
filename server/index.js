@@ -31,16 +31,34 @@ const SERVICE_LABELS = {
 const app = express()
 app.use(express.json())
 
-async function sendTelegram(chatId, text) {
-  if (!BOT_TOKEN || !chatId) return
-  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  })
-  if (!res.ok) {
-    console.error('Telegram sendMessage failed:', res.status, await res.text())
-  }
+// рассылка всем активным подписчикам заведения; 403 = пользователь
+// заблокировал бота — подписка тихо деактивируется
+async function broadcastTelegram(venueId, text) {
+  if (!BOT_TOKEN || !supabase) return 0
+  const { data: subs } = await supabase
+    .from('venue_subscribers')
+    .select('id, chat_id')
+    .eq('venue_id', venueId)
+    .eq('is_active', true)
+  if (!subs?.length) return 0
+  let sent = 0
+  await Promise.all(
+    subs.map(async (s) => {
+      const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: s.chat_id, text }),
+      })
+      if (res.ok) {
+        sent++
+      } else if (res.status === 403) {
+        await supabase.from('venue_subscribers').update({ is_active: false }).eq('id', s.id)
+      } else {
+        console.error('Telegram sendMessage failed:', res.status, await res.text())
+      }
+    })
+  )
+  return sent
 }
 
 app.post('/api/notify', async (req, res) => {
@@ -88,7 +106,7 @@ app.post('/api/notify', async (req, res) => {
 
     const { data: venue, error } = await supabase
       .from('venues')
-      .select('id, name, owner_telegram_chat_id')
+      .select('id, name')
       .eq('id', venue_id)
       .maybeSingle()
     if (error || !venue) {
@@ -125,9 +143,7 @@ app.post('/api/notify', async (req, res) => {
             }${roomNote}`
 
     // нет chat_id — данные уже в базе, просто выходим без ошибки
-    if (venue.owner_telegram_chat_id) {
-      await sendTelegram(venue.owner_telegram_chat_id, text)
-    }
+    await broadcastTelegram(venue.id, text)
 
     res.json({ ok: true })
   } catch (err) {
