@@ -195,7 +195,7 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
-    document.title = 'halo — умные NFC-таблички для заведений'
+    document.title = 'halo — умные NFC-таблички для бизнеса | Узбекистан'
     if (!document.getElementById('lp-fonts')) {
       const link = document.createElement('link')
       link.id = 'lp-fonts'
