@@ -1608,33 +1608,34 @@ body {
     margin-bottom: 30px;
   }
 
-  /* сцена: тот же круг-хало, компактнее */
+  /* сцена: тот же круг-хало, компактнее; радиус от ширины экрана,
+     чтобы пилюли не выезжали за край даже в крайних точках орбиты */
   .lp-scene {
-    min-height: 500px;
+    min-height: 440px;
     perspective: none;
   }
 
   .lp-fan {
-    --r: 158px;
+    --r: min(138px, calc(50vw - 54px));
   }
 
   .lp-pill {
-    font-size: 12px;
-    padding: 9px 13px;
-    gap: 6px;
+    font-size: 11px;
+    padding: 8px 11px;
+    gap: 5px;
   }
 
   .lp-pill svg {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
   }
 
   .lp-tag {
-    width: 190px;
+    width: 168px;
   }
 
   .lp-tag-arcs {
-    width: 92px;
+    width: 82px;
   }
 
   .lp-waves i {
@@ -1759,5 +1760,21 @@ body {
   }
   50% {
     opacity: 1;
+  }
+}
+
+
+/* короткие подписи пилюль — только на мобильном */
+.lp-pill-short {
+  display: none;
+}
+
+@media (max-width: 940px) {
+  .lp-pill-full {
+    display: none;
+  }
+
+  .lp-pill-short {
+    display: inline;
   }
 }

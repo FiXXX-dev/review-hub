@@ -19,7 +19,7 @@ const FAN = [
   { Icon: Wifi, label: 'Wi-Fi' },
   { Icon: BookOpen, label: 'Меню' },
   { Icon: Star, label: 'Отзывы' },
-  { Icon: BellRing, label: 'Обслуживание' },
+  { Icon: BellRing, label: 'Обслуживание', short: 'Сервис' },
   { Icon: Car, label: 'Такси' },
   { Icon: BarChart3, label: 'Статистика' },
 ]
@@ -124,14 +124,21 @@ function HeroTag() {
       {/* орбита возможностей: разлетаются по кругу и вращаются вокруг таблички */}
       <div className={`lp-fan ${open ? 'open' : ''}`} aria-hidden={!open}>
         <ul className="lp-ring">
-          {FAN.map(({ Icon, label }, i) => (
+          {FAN.map(({ Icon, label, short }, i) => (
             <li
               key={label}
               style={{ '--a': `${i * 60}deg`, transitionDelay: open ? `${140 + i * 55}ms` : '0ms' }}
             >
               <span className="lp-pill">
                 <Icon size={17} strokeWidth={1.9} />
-                {label}
+                {short ? (
+                  <>
+                    <span className="lp-pill-full">{label}</span>
+                    <span className="lp-pill-short">{short}</span>
+                  </>
+                ) : (
+                  label
+                )}
               </span>
             </li>
           ))}
