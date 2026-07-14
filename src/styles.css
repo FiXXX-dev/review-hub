@@ -582,12 +582,7 @@ body {
   vertical-align: -2px;
 }
 
-.halo-login-mark {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 4px;
-  display: block;
-}
+
 
 .contacts-value {
   text-align: right;
@@ -1175,10 +1170,7 @@ body {
   margin-bottom: 44px;
 }
 
-.lp-logo img {
-  width: 30px;
-  height: 30px;
-}
+
 
 .lp-hero-copy h1 {
   font-size: clamp(40px, 6vw, 88px);
@@ -1361,8 +1353,8 @@ body {
   overflow: visible;
 }
 
-.lp-tag-arcs g {
-  stroke: var(--signal);
+.lp-tag-arcs {
+  color: var(--signal);
 }
 
 .lp-tag-caption {
@@ -1572,8 +1564,8 @@ body {
   overflow: visible;
 }
 
-.lp-contact-arcs g {
-  stroke: var(--halo);
+.lp-contact-arcs {
+  color: var(--halo);
   opacity: 0.6;
 }
 
@@ -1743,15 +1735,15 @@ body {
 }
 
 /* ─── пульс дуг в контактах ─── */
-.lp-contact-arcs path {
+.lp-contact-arcs circle {
   animation: lp-arc-pulse 3s ease-in-out infinite;
 }
 
-.lp-contact-arcs path:nth-child(2) {
+.lp-contact-arcs circle:nth-child(2) {
   animation-delay: 0.35s;
 }
 
-.lp-contact-arcs path:nth-child(3) {
+.lp-contact-arcs circle:nth-child(3) {
   animation-delay: 0.7s;
 }
 
@@ -1823,4 +1815,23 @@ body {
 
 .lp {
   position: relative;
+}
+
+
+/* ─── Единый компонент лого ─── */
+.halo-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.halo-logo-icon {
+  color: var(--signal, #1b62f0);
+  flex-shrink: 0;
+}
+
+.halo-login-mark {
+  color: #1f5bf0;
+  margin: 0 auto 4px;
+  display: block;
 }

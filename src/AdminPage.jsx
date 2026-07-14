@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import { BLOCK_DEFS, LINK_TYPES, SERVICE_OPTIONS } from './lib/blocks.js'
+import { HaloIcon } from './lib/logo.jsx'
 
 const EMPTY_VENUE = {
   slug: '',
@@ -103,7 +104,7 @@ function Login() {
   return (
     <div className="page center">
       <form className="card admin-login" onSubmit={submit}>
-        <img className="halo-login-mark" src={`${import.meta.env.BASE_URL}halo.svg`} alt="halo" />
+        <HaloIcon className="halo-login-mark" size={40} />
         <h1 className="admin-title">halo — админка</h1>
         <input
           type="email"

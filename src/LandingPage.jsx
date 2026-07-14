@@ -11,6 +11,7 @@ import {
   Phone,
 } from 'lucide-react'
 import { useLang, LangSwitch } from './lib/i18n.jsx'
+import { HaloIcon, HaloLogo } from './lib/logo.jsx'
 
 // ─── Контакты halo ───
 const TELEGRAM_URL = 'https://t.me/bangbangrs'
@@ -109,19 +110,6 @@ const REDUCED = () =>
 const NO_HOVER = () =>
   typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
 
-/* Дуги halo */
-function Arcs({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 100 56" aria-hidden="true">
-      <g fill="none" strokeLinecap="round">
-        <path d="M14 52 A38 38 0 1 1 86 52" strokeWidth="5" />
-        <path d="M27 50 A25 25 0 1 1 73 50" strokeWidth="5" />
-        <path d="M39 48 A12 12 0 1 1 61 48" strokeWidth="5" />
-      </g>
-    </svg>
-  )
-}
-
 /* ─── Сигнатура: физический тег ─── */
 function HeroTag({ c }) {
   const [open, setOpen] = useState(false)
@@ -216,7 +204,7 @@ function HeroTag({ c }) {
           aria-label={c.tag_aria}
         >
           <span className="lp-tag-gloss" aria-hidden="true" />
-          <Arcs className="lp-tag-arcs" />
+          <HaloIcon className="lp-tag-arcs" size={126} strokeWidth={7} />
           <span className="lp-tag-caption">{c.tag_caption}</span>
         </button>
       </div>
@@ -283,10 +271,7 @@ export default function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-inner">
           <div className="lp-hero-copy">
-            <div className="lp-logo">
-              <img src={`${base}halo.svg`} alt="" />
-              halo
-            </div>
+            <HaloLogo className="lp-logo" size={30} />
             <h1 className="lp-display">{c.h1}</h1>
             <p className="lp-hero-sub">{c.sub}</p>
             <div className="lp-cta">
@@ -384,7 +369,7 @@ export default function LandingPage() {
 
       {/* ─── КОНТАКТ ─── */}
       <section className="lp-section lp-contact">
-        <Arcs className="lp-contact-arcs" />
+        <HaloIcon className="lp-contact-arcs" size={56} />
         <h2 className="lp-display">{c.contact_h2}</h2>
         <div className="lp-cta">
           <a className="lp-btn lp-btn-solid" href={TELEGRAM_URL} target="_blank" rel="noreferrer">

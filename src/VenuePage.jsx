@@ -15,6 +15,7 @@ import {
   serviceTitle,
 } from './lib/blocks.js'
 import { useLang, useT, LangSwitch } from './lib/i18n.jsx'
+import { HaloIcon } from './lib/logo.jsx'
 
 // Иконки услуг: ключ хранится в services.icon (или в ключе плитки).
 // Неизвестное значение рендерится как текст (эмодзи), пусто — колокольчик.
@@ -271,7 +272,7 @@ export default function VenuePage({ slug }) {
           <div className="powered">
             {t('powered')}{' '}
             <span className="halo-brand">
-              <img className="halo-mark" src={`${import.meta.env.BASE_URL}halo.svg`} alt="" />
+              <HaloIcon className="halo-mark" size={13} strokeWidth={11} />
               halo
             </span>
           </div>
