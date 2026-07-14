@@ -16,6 +16,7 @@ import {
 } from './lib/blocks.js'
 import { useLang, useT, LangSwitch } from './lib/i18n.jsx'
 import { HaloIcon } from './lib/logo.jsx'
+import { InstagramIcon } from './lib/brand-icons.jsx'
 
 // Иконки услуг: ключ хранится в services.icon (или в ключе плитки).
 // Неизвестное значение рендерится как текст (эмодзи), пусто — колокольчик.
@@ -221,7 +222,7 @@ export default function VenuePage({ slug }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                <BlockIcon type={g.type} size={18} /> {g.label}
+                {g.type === 'instagram' ? <InstagramIcon size={18} /> : <BlockIcon type={g.type} size={18} />} {g.label}
               </a>
             ))}
           </div>
