@@ -9,6 +9,7 @@ import {
   Calendar,
   Send,
   Phone,
+  Camera,
 } from 'lucide-react'
 import { useLang, LangSwitch } from './lib/i18n.jsx'
 import { HaloIcon, HaloLogo } from './lib/logo.jsx'
@@ -16,6 +17,7 @@ import { HaloIcon, HaloLogo } from './lib/logo.jsx'
 // ─── Контакты halo ───
 const TELEGRAM_URL = 'https://t.me/bangbangrs'
 const PHONE = '+998 95 183-66-36'
+const INSTAGRAM_URL = 'https://www.instagram.com/halonfc/'
 
 // ─── Тексты лендинга (гости и владельцы бывают разные — EN по умолчанию, RU в один тап) ───
 const L = {
@@ -377,6 +379,9 @@ export default function LandingPage() {
           </a>
           <a className="lp-btn lp-btn-ghost" href={`tel:${PHONE.replace(/[^+\d]/g, '')}`}>
             <Phone size={18} strokeWidth={2} /> {PHONE}
+          </a>
+          <a className="lp-btn lp-btn-ghost" href={INSTAGRAM_URL} target="_blank" rel="noreferrer">
+            <Camera size={18} strokeWidth={2} /> Instagram
           </a>
         </div>
       </section>
