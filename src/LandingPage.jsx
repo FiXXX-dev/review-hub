@@ -136,13 +136,15 @@ function HeroTag({ c }) {
     timers.current = []
   }
 
-  function activate(auto = false) {
+  // тумблер: тап — разлетелись и крутятся, повторный тап — убрались
+  function toggle(auto = false) {
     if (!auto) touched.current = true
     clearTimers()
-    setBurst((b) => b + 1)
-    setOpen(true)
-    // через 5 секунд бездействия — мягко сворачивается
-    timers.current.push(setTimeout(() => setOpen(false), 5000))
+    setOpen((was) => {
+      if (was) return false
+      setBurst((b) => b + 1)
+      return true
+    })
   }
 
   // автозапуск: один раз через 3 секунды, если не тапнули
@@ -152,7 +154,7 @@ function HeroTag({ c }) {
       return
     }
     const t = setTimeout(() => {
-      if (!touched.current) activate(true)
+      if (!touched.current) toggle(true)
     }, 3000)
     return () => {
       clearTimeout(t)
@@ -210,7 +212,7 @@ function HeroTag({ c }) {
           type="button"
           className="lp-tag"
           ref={tagRef}
-          onClick={() => activate(false)}
+          onClick={() => toggle(false)}
           aria-label={c.tag_aria}
         >
           <span className="lp-tag-gloss" aria-hidden="true" />
