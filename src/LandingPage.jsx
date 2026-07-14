@@ -121,15 +121,22 @@ function HeroTag() {
         </span>
       )}
 
-      {/* веер возможностей */}
-      <ul className={`lp-fan ${open ? 'open' : ''}`} aria-hidden={!open}>
-        {FAN.map(({ Icon, label }, i) => (
-          <li key={label} style={{ transitionDelay: open ? `${140 + i * 60}ms` : '0ms' }}>
-            <Icon size={17} strokeWidth={1.9} />
-            {label}
-          </li>
-        ))}
-      </ul>
+      {/* орбита возможностей: разлетаются по кругу и вращаются вокруг таблички */}
+      <div className={`lp-fan ${open ? 'open' : ''}`} aria-hidden={!open}>
+        <ul className="lp-ring">
+          {FAN.map(({ Icon, label }, i) => (
+            <li
+              key={label}
+              style={{ '--a': `${i * 60}deg`, transitionDelay: open ? `${140 + i * 55}ms` : '0ms' }}
+            >
+              <span className="lp-pill">
+                <Icon size={17} strokeWidth={1.9} />
+                {label}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {/* сама табличка (обёртка — лёгкое парение) */}
       <div className="lp-tag-float">
