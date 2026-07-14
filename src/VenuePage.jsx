@@ -12,7 +12,9 @@ import {
   SERVICE_OPTIONS,
   DEFAULT_TAXI_CLASSES,
   formatPrice,
+  serviceTitle,
 } from './lib/blocks.js'
+import { useLang, useT, LangSwitch } from './lib/i18n.jsx'
 
 // Иконки услуг: ключ хранится в services.icon (или в ключе плитки).
 // Неизвестное значение рендерится как текст (эмодзи), пусто — колокольчик.
@@ -95,6 +97,8 @@ function resolveAssetUrl(u) {
 }
 
 export default function VenuePage({ slug }) {
+  const { lang } = useLang()
+  const t = useT()
   const [venue, setVenue] = useState(null)
   const [loading, setLoading] = useState(true)
   const [bgLoaded, setBgLoaded] = useState(false)
@@ -183,14 +187,14 @@ export default function VenuePage({ slug }) {
       <div className="page center">
         <div className="notfound">
           <div className="notfound-emoji">🔍</div>
-          <h1>Заведение не найдено</h1>
-          <p>Проверьте ссылку или отсканируйте QR-код ещё раз.</p>
+          <h1>{t('notfound_title')}</h1>
+          <p>{t('notfound_sub')}</p>
         </div>
       </div>
     )
   }
 
-  const blocks = resolveBlocks(venue)
+  const blocks = resolveBlocks(venue, lang)
 
   // подряд идущие instagram/telegram схлопываем в компактный ряд
   const rendered = []
@@ -238,6 +242,7 @@ export default function VenuePage({ slug }) {
         />
       )}
       <div className="container">
+        <LangSwitch className="venue-lang" />
         <header className="header">
           {venue.logo_url && (
             <img
@@ -264,7 +269,7 @@ export default function VenuePage({ slug }) {
             </div>
           )}
           <div className="powered">
-            Работает на{' '}
+            {t('powered')}{' '}
             <span className="halo-brand">
               <img className="halo-mark" src={`${import.meta.env.BASE_URL}halo.svg`} alt="" />
               halo
@@ -317,6 +322,7 @@ function renderBlock(block, venue, room, setRoom) {
 
 /* ─── Оценка (ядро продукта) ─── */
 function RatingBlock({ block, venue, room }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [stars, setStars] = useState(0)
   const [ratingId, setRatingId] = useState(null)
@@ -396,8 +402,8 @@ function RatingBlock({ block, venue, room }) {
       {done ? (
         <div className="thanks">
           <div className="thanks-emoji">🙏</div>
-          <p className="thanks-title">Спасибо!</p>
-          <p className="thanks-sub">Владелец уже получил ваше сообщение.</p>
+          <p className="thanks-title">{t('thanks')}</p>
+          <p className="thanks-sub">{t('owner_got')}</p>
         </div>
       ) : (
         <>
@@ -416,7 +422,7 @@ function RatingBlock({ block, venue, room }) {
 
           {stars >= 4 && (
             <div className="after-stars">
-              <p className="after-title">Спасибо! Поделитесь оценкой:</p>
+              <p className="after-title">{t('share_rating')}</p>
               <div className="platforms">
                 {availablePlatforms.map((p) => (
                   <button key={p.key} className="btn btn-platform" onClick={() => goToPlatform(p)}>
@@ -430,7 +436,7 @@ function RatingBlock({ block, venue, room }) {
           {stars >= 1 && stars <= 3 && (
             <form className="after-stars feedback-form" onSubmit={submitFeedback}>
               <textarea
-                placeholder="Расскажите, что было не так — мы исправим"
+                placeholder={t('feedback_ph')}
                 value={feedbackMsg}
                 onChange={(e) => setFeedbackMsg(e.target.value)}
                 rows={4}
@@ -438,7 +444,7 @@ function RatingBlock({ block, venue, room }) {
               />
               <input
                 type="text"
-                placeholder="Телефон или имя (по желанию)"
+                placeholder={t('contact_ph')}
                 value={feedbackContact}
                 onChange={(e) => setFeedbackContact(e.target.value)}
               />
@@ -447,7 +453,7 @@ function RatingBlock({ block, venue, room }) {
                 type="submit"
                 disabled={sending || !feedbackMsg.trim()}
               >
-                {sending ? 'Отправляем…' : 'Отправить'}
+                {sending ? t('sending') : t('send')}
               </button>
             </form>
           )}
@@ -459,6 +465,7 @@ function RatingBlock({ block, venue, room }) {
 
 /* ─── Wi-Fi ─── */
 function WifiBlock({ block, venue }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -485,17 +492,17 @@ function WifiBlock({ block, venue }) {
       {open && (
         <div className="card wifi-card">
           <div className="wifi-row">
-            <span className="wifi-label">Сеть</span>
+            <span className="wifi-label">{t('network')}</span>
             <span className="wifi-value">{venue.wifi_ssid}</span>
           </div>
           {venue.wifi_password && (
             <>
               <div className="wifi-row">
-                <span className="wifi-label">Пароль</span>
+                <span className="wifi-label">{t('password')}</span>
                 <span className="wifi-value">{venue.wifi_password}</span>
               </div>
               <button className="btn btn-copy" onClick={copyPassword}>
-                {copied ? '✓ Скопировано' : 'Скопировать пароль'}
+                {copied ? t('copied') : t('copy_pass')}
               </button>
             </>
           )}
@@ -507,6 +514,7 @@ function WifiBlock({ block, venue }) {
 
 /* ─── Запись (имя, телефон, услуга, время) ─── */
 function AppointmentBlock({ block, venue, room }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -543,34 +551,34 @@ function AppointmentBlock({ block, venue, room }) {
           {done ? (
             <div className="thanks">
               <div className="thanks-emoji">✅</div>
-              <p className="thanks-title">Заявка отправлена!</p>
-              <p className="thanks-sub">С вами свяжутся для подтверждения.</p>
+              <p className="thanks-title">{t('request_sent')}</p>
+              <p className="thanks-sub">{t('will_contact')}</p>
             </div>
           ) : (
             <form className="feedback-form" onSubmit={submit}>
               <input
                 type="text"
-                placeholder="Ваше имя"
+                placeholder={t('your_name')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
               />
               <input
                 type="tel"
-                placeholder="Телефон"
+                placeholder={t('phone_ph')}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
               />
               <input
                 type="text"
-                placeholder="Услуга (по желанию)"
+                placeholder={t('service_ph')}
                 value={service}
                 onChange={(e) => setService(e.target.value)}
               />
               <input
                 type="text"
-                placeholder="Удобное время, например: завтра после 15:00"
+                placeholder={t('appt_time_ph')}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
               />
@@ -579,7 +587,7 @@ function AppointmentBlock({ block, venue, room }) {
                 type="submit"
                 disabled={sending || !name.trim() || !phone.trim()}
               >
-                {sending ? 'Отправляем…' : 'Записаться'}
+                {sending ? t('sending') : t('book')}
               </button>
             </form>
           )}
@@ -591,6 +599,7 @@ function AppointmentBlock({ block, venue, room }) {
 
 /* ─── Контакты ─── */
 function ContactsBlock({ block, venue }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -601,13 +610,13 @@ function ContactsBlock({ block, venue }) {
         <div className="card wifi-card">
           {venue.address && (
             <div className="wifi-row">
-              <span className="wifi-label">Адрес</span>
+              <span className="wifi-label">{t('address')}</span>
               <span className="wifi-value contacts-value">{venue.address}</span>
             </div>
           )}
           {venue.phone && (
             <div className="wifi-row">
-              <span className="wifi-label">Телефон</span>
+              <span className="wifi-label">{t('phone_label')}</span>
               <a className="wifi-value" href={`tel:${venue.phone}`}>
                 {venue.phone}
               </a>
@@ -621,6 +630,7 @@ function ContactsBlock({ block, venue }) {
 
 /* ─── Такси: форма вызова ─── */
 function TaxiBlock({ block, venue, room, setRoom }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [roomInput, setRoomInput] = useState('')
   const [destination, setDestination] = useState('')
@@ -667,15 +677,15 @@ function TaxiBlock({ block, venue, room, setRoom }) {
           {done ? (
             <div className="thanks">
               <div className="thanks-emoji">🚕</div>
-              <p className="thanks-title">Заявка принята!</p>
-              <p className="thanks-sub">Ресепшн свяжется с вами.</p>
+              <p className="thanks-title">{t('request_accepted')}</p>
+              <p className="thanks-sub">{t('reception')}</p>
             </div>
           ) : (
             <form className="feedback-form" onSubmit={submit}>
               {!room && (
                 <input
                   type="text"
-                  placeholder="Номер комнаты"
+                  placeholder={t('room_number')}
                   value={roomInput}
                   onChange={(e) => setRoomInput(e.target.value)}
                   required
@@ -683,7 +693,7 @@ function TaxiBlock({ block, venue, room, setRoom }) {
               )}
               <input
                 type="text"
-                placeholder="Куда ехать"
+                placeholder={t('where_to')}
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 required
@@ -706,14 +716,14 @@ function TaxiBlock({ block, venue, room, setRoom }) {
                   className={`chip ${whenMode === 'now' ? 'on' : ''}`}
                   onClick={() => setWhenMode('now')}
                 >
-                  Сейчас
+                  {t('now')}
                 </button>
                 <button
                   type="button"
                   className={`chip ${whenMode === 'later' ? 'on' : ''}`}
                   onClick={() => setWhenMode('later')}
                 >
-                  Ко времени
+                  {t('later')}
                 </button>
                 {whenMode === 'later' && (
                   <input
@@ -726,13 +736,13 @@ function TaxiBlock({ block, venue, room, setRoom }) {
                 )}
               </div>
               <textarea
-                placeholder="Комментарий (по желанию)"
+                placeholder={t('comment_ph')}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={2}
               />
               <button className="btn btn-primary" type="submit" disabled={!canSend}>
-                {sending ? 'Отправляем…' : 'Вызвать такси'}
+                {sending ? t('sending') : t('call_taxi')}
               </button>
             </form>
           )}
@@ -744,6 +754,8 @@ function TaxiBlock({ block, venue, room, setRoom }) {
 
 /* ─── Обслуживание номера: плитки с ценами из каталога services ─── */
 function ServicesCatalogBlock({ block, venue, room, setRoom }) {
+  const t = useT()
+  const { lang } = useLang()
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState(null) // null = ещё не загружали
   const [selected, setSelected] = useState(null)
@@ -773,6 +785,7 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
             ).map((o) => ({
               id: o.key,
               title_ru: o.label_ru,
+              title_en: o.label_en,
               icon: o.key,
               price: null,
               is_free: false, // без бейджа цены в легаси-режиме
@@ -788,8 +801,8 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
 
   function priceLabel(s) {
     if (s.legacy) return null
-    if (s.is_free || s.price == null) return 'Бесплатно'
-    return formatPrice(s.price)
+    if (s.is_free || s.price == null) return t('free')
+    return formatPrice(s.price, lang)
   }
 
   function pick(s) {
@@ -827,8 +840,8 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
           {done ? (
             <div className="thanks">
               <div className="thanks-emoji">🛎️</div>
-              <p className="thanks-title">Заявка принята!</p>
-              <p className="thanks-sub">Скоро подойдём.</p>
+              <p className="thanks-title">{t('request_accepted')}</p>
+              <p className="thanks-sub">{t('coming')}</p>
               <button
                 type="button"
                 className="btn-link"
@@ -837,25 +850,25 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
                   setSelected(null)
                 }}
               >
-                Заказать ещё
+                {t('order_more')}
               </button>
             </div>
           ) : items === null ? (
             <div className="spinner" style={{ margin: '12px auto' }} />
           ) : items.length === 0 ? (
-            <p className="service-hint">Список услуг пока пуст</p>
+            <p className="service-hint">{t('empty_services')}</p>
           ) : !selected ? (
             <div className="service-body">
               {!room && (
                 <input
                   className="service-room-input"
                   type="text"
-                  placeholder="Номер комнаты"
+                  placeholder={t('room_number')}
                   value={roomInput}
                   onChange={(e) => setRoomInput(e.target.value)}
                 />
               )}
-              {room && <p className="service-room-label">Номер {room}</p>}
+              {room && <p className="service-room-label">{t('room')} {room}</p>}
               <div className="service-grid">
                 {items.map((s) => (
                   <button
@@ -866,7 +879,7 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
                     onClick={() => pick(s)}
                   >
                     <SvcIcon icon={s.icon} />
-                    <span>{s.title_ru}</span>
+                    <span>{serviceTitle(s, lang)}</span>
                     {priceLabel(s) && (
                       <span
                         className={`service-tile-price ${
@@ -879,16 +892,14 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
                   </button>
                 ))}
               </div>
-              {!effectiveRoom && (
-                <p className="service-hint">Укажите номер комнаты, чтобы отправить запрос</p>
-              )}
+              {!effectiveRoom && <p className="service-hint">{t('room_hint')}</p>}
             </div>
           ) : (
             <form className="feedback-form" onSubmit={submit}>
               <div className="svc-selected">
                 <span className="svc-title">
                   <SvcIcon icon={selected.icon} size={18} />
-                  {selected.title_ru}
+                  {serviceTitle(selected, lang)}
                 </span>
                 {priceLabel(selected) && (
                   <span
@@ -901,11 +912,7 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
                 )}
               </div>
               <textarea
-                placeholder={
-                  selected.require_comment
-                    ? 'Опишите, что случилось (обязательно)'
-                    : 'Комментарий (по желанию)'
-                }
+                placeholder={selected.require_comment ? t('broken_ph') : t('comment_ph')}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={2}
@@ -913,7 +920,7 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
               />
               <input
                 type="text"
-                placeholder="К какому времени (по желанию)"
+                placeholder={t('svc_time_ph')}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
               />
@@ -924,10 +931,10 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
                   sending || !effectiveRoom || (selected.require_comment && !comment.trim())
                 }
               >
-                {sending ? 'Отправляем…' : 'Заказать'}
+                {sending ? t('sending') : t('order')}
               </button>
               <button type="button" className="btn-link" onClick={() => setSelected(null)}>
-                ← К списку
+                {t('back_list')}
               </button>
             </form>
           )}

@@ -22,6 +22,7 @@ function rowToDraft(s) {
   return {
     icon: s.icon ?? '',
     title_ru: s.title_ru ?? '',
+    title_en: s.title_en ?? '',
     price: s.price == null ? '' : String(s.price),
     is_free: !!s.is_free,
     require_comment: !!s.require_comment,
@@ -69,6 +70,7 @@ export default function ServicesAdminPage({ slug }) {
     return {
       icon: draft.icon.trim() || null,
       title_ru: draft.title_ru.trim(),
+      title_en: draft.title_en.trim() || null,
       price: Number.isFinite(price) ? price : null,
       is_free: draft.is_free,
       require_comment: draft.require_comment,
@@ -182,6 +184,15 @@ export default function ServicesAdminPage({ slug }) {
                     placeholder="Название услуги"
                     value={d.title_ru}
                     onChange={(e) => setDraft(s.id, 'title_ru', e.target.value)}
+                  />
+                </div>
+                <div className="svc-admin-line">
+                  <input
+                    className="svc-admin-title"
+                    type="text"
+                    placeholder="Название по-английски (для гостей-туристов)"
+                    value={d.title_en}
+                    onChange={(e) => setDraft(s.id, 'title_en', e.target.value)}
                   />
                 </div>
                 <div className="svc-admin-line">

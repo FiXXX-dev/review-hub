@@ -1,22 +1,22 @@
 // Реестр типов блоков. Подписи/иконки по умолчанию — фолбэк на случай,
 // когда блок включён вручную и его нет в пресете заведения.
 export const BLOCK_DEFS = {
-  rating: { label_ru: 'Оценить нас', label_uz: 'Bizni baholang', icon: '⭐' },
-  menu: { label_ru: 'Меню', label_uz: 'Menyu', icon: '📖' },
-  wifi: { label_ru: 'Wi-Fi', label_uz: 'Wi-Fi', icon: '📶' },
-  instagram: { label_ru: 'Instagram', label_uz: 'Instagram', icon: '📷' },
-  telegram: { label_ru: 'Telegram', label_uz: 'Telegram', icon: '✈️' },
-  contacts: { label_ru: 'Контакты', label_uz: 'Kontaktlar', icon: '📍' },
-  price: { label_ru: 'Прайс', label_uz: 'Narxlar', icon: '💰' },
-  doctors: { label_ru: 'Наши врачи', label_uz: 'Shifokorlarimiz', icon: '🩺' },
-  appointment: { label_ru: 'Записаться', label_uz: 'Yozilish', icon: '📅' },
-  services: { label_ru: 'Услуги', label_uz: 'Xizmatlar', icon: '🛎️' },
-  service: { label_ru: 'Обслуживание номера', label_uz: 'Xona xizmati', icon: '🛎️' },
-  info: { label_ru: 'Информация', label_uz: "Ma'lumot", icon: 'ℹ️' },
-  taxi: { label_ru: 'Вызвать такси', label_uz: 'Taksi chaqirish', icon: '🚕' },
-  catalog: { label_ru: 'Каталог', label_uz: 'Katalog', icon: '🛍️' },
-  masters: { label_ru: 'Наши мастера', label_uz: 'Ustalarimiz', icon: '💇' },
-  phone: { label_ru: 'Позвонить', label_uz: "Qo'ng'iroq qilish", icon: '📞' },
+  rating: { label_ru: 'Оценить нас', label_uz: 'Bizni baholang', label_en: 'Rate us', icon: '⭐' },
+  menu: { label_ru: 'Меню', label_uz: 'Menyu', label_en: 'Menu', icon: '📖' },
+  wifi: { label_ru: 'Wi-Fi', label_uz: 'Wi-Fi', label_en: 'Wi-Fi', icon: '📶' },
+  instagram: { label_ru: 'Instagram', label_uz: 'Instagram', label_en: 'Instagram', icon: '📷' },
+  telegram: { label_ru: 'Telegram', label_uz: 'Telegram', label_en: 'Telegram', icon: '✈️' },
+  contacts: { label_ru: 'Контакты', label_uz: 'Kontaktlar', label_en: 'Contacts', icon: '📍' },
+  price: { label_ru: 'Прайс', label_uz: 'Narxlar', label_en: 'Prices', icon: '💰' },
+  doctors: { label_ru: 'Наши врачи', label_uz: 'Shifokorlarimiz', label_en: 'Our doctors', icon: '🩺' },
+  appointment: { label_ru: 'Записаться', label_uz: 'Yozilish', label_en: 'Book a visit', icon: '📅' },
+  services: { label_ru: 'Услуги', label_uz: 'Xizmatlar', label_en: 'Services', icon: '🛎️' },
+  service: { label_ru: 'Обслуживание номера', label_uz: 'Xona xizmati', label_en: 'Room service', icon: '🛎️' },
+  info: { label_ru: 'Информация', label_uz: "Ma'lumot", label_en: 'Information', icon: 'ℹ️' },
+  taxi: { label_ru: 'Вызвать такси', label_uz: 'Taksi chaqirish', label_en: 'Call a taxi', icon: '🚕' },
+  catalog: { label_ru: 'Каталог', label_uz: 'Katalog', label_en: 'Catalogue', icon: '🛍️' },
+  masters: { label_ru: 'Наши мастера', label_uz: 'Ustalarimiz', label_en: 'Our specialists', icon: '💇' },
+  phone: { label_ru: 'Позвонить', label_uz: "Qo'ng'iroq qilish", label_en: 'Call us', icon: '📞' },
 }
 
 // Блоки-ссылки: иконка + подпись + url (url лежит в venues.block_links).
@@ -26,24 +26,43 @@ export const LINK_TYPES = ['menu', 'price', 'catalog', 'doctors', 'masters', 'in
 // Классы такси по умолчанию (venues.taxi_classes переопределяет)
 export const DEFAULT_TAXI_CLASSES = ['Эконом', 'Комфорт', 'Минивэн']
 
-// "45000" -> "45 000 сум"
-export function formatPrice(p) {
+// "45000" -> "45 000 сум" | "45 000 UZS"
+export function formatPrice(p, lang = 'ru') {
   const n = Number(p)
   if (!Number.isFinite(n)) return ''
-  return `${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} сум`
+  const num = String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return lang === 'en' ? `${num} UZS` : `${num} сум`
 }
 
 // Запросы обслуживания номера (блок service). Ключ хранится в
 // service_requests.request_type; venues.service_options (jsonb-массив
 // ключей) ограничивает список — null = включены все.
 export const SERVICE_OPTIONS = [
-  { key: 'cleaning', label_ru: 'Уборка' },
-  { key: 'towels', label_ru: 'Полотенца / бельё' },
-  { key: 'water', label_ru: 'Вода' },
-  { key: 'late_checkout', label_ru: 'Поздний выезд' },
-  { key: 'broken', label_ru: 'Что-то сломалось', comment: true },
-  { key: 'taxi', label_ru: 'Вызвать такси' },
+  { key: 'cleaning', label_ru: 'Уборка', label_en: 'Cleaning' },
+  { key: 'towels', label_ru: 'Полотенца / бельё', label_en: 'Towels / linens' },
+  { key: 'water', label_ru: 'Вода', label_en: 'Water' },
+  { key: 'late_checkout', label_ru: 'Поздний выезд', label_en: 'Late check-out' },
+  { key: 'broken', label_ru: 'Что-то сломалось', label_en: 'Something broke', comment: true },
+  { key: 'taxi', label_ru: 'Вызвать такси', label_en: 'Call a taxi' },
 ]
+
+// автоперевод типовых названий услуг из каталога (сид отеля);
+// для нестандартных названий владелец заполняет title_en в редакторе
+export const SERVICE_TITLE_EN = {
+  'Уборка номера': 'Room cleaning',
+  'Свежие полотенца': 'Fresh towels',
+  'Питьевая вода': 'Drinking water',
+  'Завтрак в номер': 'Breakfast in room',
+  'Прачечная': 'Laundry',
+  'Поздний выезд': 'Late check-out',
+  'Что-то сломалось': 'Something broke',
+  'Новая услуга': 'New service',
+}
+
+export function serviceTitle(s, lang) {
+  if (lang === 'en') return s.title_en || SERVICE_TITLE_EN[s.title_ru] || s.title_ru
+  return s.title_ru
+}
 
 // Поведение до пресетов: если у заведения нет ни пресета, ни enabled_blocks
 export const LEGACY_BLOCKS = ['rating', 'menu', 'wifi', 'instagram', 'telegram']
@@ -59,7 +78,7 @@ export function blockUrl(venue, type) {
 // enabled_blocks задаёт состав и порядок (иначе — порядок пресета);
 // rating обязателен, но его позиция управляется пресетом (у отелей
 // первым идёт wifi).
-export function resolveBlocks(venue) {
+export function resolveBlocks(venue, lang = 'ru') {
   const presetBlocks = venue.preset?.blocks ?? []
   const defs = { ...BLOCK_DEFS }
   for (const b of presetBlocks) {
@@ -88,7 +107,11 @@ export function resolveBlocks(venue) {
 
   return types
     .filter((t, i) => defs[t] && types.indexOf(t) === i)
-    .map((t) => ({ type: t, label: defs[t].label_ru, icon: defs[t].icon }))
+    .map((t) => ({
+      type: t,
+      label: lang === 'en' ? defs[t].label_en || defs[t].label_ru : defs[t].label_ru,
+      icon: defs[t].icon,
+    }))
 }
 
 // Порядок платформ отзывов: venues.rating_platform_order (jsonb-массив

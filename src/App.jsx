@@ -4,6 +4,7 @@ import AdminPage from './AdminPage.jsx'
 import RoomLinksPage from './RoomLinksPage.jsx'
 import ServicesAdminPage from './ServicesAdminPage.jsx'
 import LandingPage from './LandingPage.jsx'
+import { LangProvider } from './lib/i18n.jsx'
 
 function getSlug() {
   // не привязываемся к началу пути: на GitHub Pages сайт живёт под /review-hub/
@@ -28,5 +29,5 @@ export default function App() {
 
   // страница заведения — только /v/:slug («не найдено» показывает она сама,
   // если slug не существует); всё остальное, включая корень, — лендинг halo
-  return slug ? <VenuePage slug={slug} /> : <LandingPage />
+  return <LangProvider>{slug ? <VenuePage slug={slug} /> : <LandingPage />}</LangProvider>
 }

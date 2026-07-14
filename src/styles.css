@@ -1778,3 +1778,47 @@ body {
     display: inline;
   }
 }
+
+/* ─── Переключатель языка (гостевые страницы) ─── */
+.lang-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.lang-switch button {
+  border: none;
+  background: transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+}
+
+.lang-switch button.on {
+  background: #fff;
+  color: var(--accent, #1b62f0);
+  box-shadow: 0 1px 4px rgba(11, 18, 32, 0.12);
+}
+
+.venue-lang {
+  align-self: flex-end;
+  margin-bottom: -6px;
+}
+
+.lp-lang {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 5;
+}
+
+.lp {
+  position: relative;
+}

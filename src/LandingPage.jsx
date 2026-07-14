@@ -10,35 +10,98 @@ import {
   Send,
   Phone,
 } from 'lucide-react'
+import { useLang, LangSwitch } from './lib/i18n.jsx'
 
 // ─── Контакты halo ───
 const TELEGRAM_URL = 'https://t.me/bangbangrs'
 const PHONE = '+998 95 183-66-36'
 
-const FAN = [
-  { Icon: Wifi, label: 'Wi-Fi' },
-  { Icon: BookOpen, label: 'Меню' },
-  { Icon: Star, label: 'Отзывы' },
-  { Icon: BellRing, label: 'Обслуживание', short: 'Сервис' },
-  { Icon: Car, label: 'Такси' },
-  { Icon: BarChart3, label: 'Статистика' },
-]
+// ─── Тексты лендинга (гости и владельцы бывают разные — EN по умолчанию, RU в один тап) ───
+const L = {
+  en: {
+    title: 'halo — smart NFC tags for business | Uzbekistan',
+    h1: 'One tap — and your guest gets everything',
+    sub: 'A smart NFC tag for venues: Wi-Fi, menu, reviews, taxi, room service. A guest taps their phone — everything opens in a second, no apps.',
+    demo: 'Open the demo',
+    write_tg: 'Message on Telegram',
+    tag_caption: 'Tap your phone',
+    tag_aria: 'Show what the halo tag opens',
+    fan: ['Wi-Fi', 'Menu', 'Reviews', 'Service', 'Taxi', 'Stats'],
+    caps_kicker: 'What opens with one tap',
+    caps: [
+      ['Wi-Fi', 'Guests connect on their own — no asking the staff'],
+      ['Menu & prices', 'Always up to date, no reprinting'],
+      ['Reviews with a filter', 'Good ones go to the maps, bad ones come to you'],
+      ['Room service', 'Cleaning, towels, breakfast — in two taps'],
+      ['Taxi', 'The request reaches the front desk instantly'],
+      ['Booking', 'For salons, clinics and car services'],
+      ['Analytics', 'Scans, ratings and requests — in numbers'],
+    ],
+    trump_kicker: 'Our trump card',
+    trump_h2: <>A bad review should never reach the&nbsp;internet</>,
+    try_hint: 'Try it: leave a rating',
+    try_good: '→ Yandex · Google · 2GIS',
+    try_bad: '→ to your Telegram, not the internet',
+    star_aria: (n) => `Rating ${n} of 5`,
+    good_mark: '4–5★',
+    good_text: 'A happy guest goes straight to Yandex, Google or 2GIS to leave a review — in one tap.',
+    bad_mark: '1–3★',
+    bad_text: 'An unhappy one writes to you personally on Telegram. Within three seconds, while they are still at the table. The complaint never reaches the internet.',
+    how_kicker: 'How it works',
+    steps: [
+      'A guest taps their phone on the tag',
+      'Your venue page opens — no apps needed',
+      'Wi-Fi, menu, requests and reviews — all in one place',
+    ],
+    who_kicker: 'Who it is for',
+    audience: 'Hotels · Cafés · Barbershops · Clinics · Car services',
+    contact_h2: 'We will show it at your venue in 10 minutes',
+    footer: 'halo · Tashkent · gethalo.uz',
+  },
+  ru: {
+    title: 'halo — умные NFC-таблички для бизнеса | Узбекистан',
+    h1: <>Одно касание — и&nbsp;гость получает всё</>,
+    sub: 'Умная NFC-табличка для заведений: Wi-Fi, меню, отзывы, вызов такси, обслуживание номера. Гость прикладывает телефон — и всё открывается за секунду, без приложений.',
+    demo: 'Открыть демо',
+    write_tg: 'Написать в Telegram',
+    tag_caption: 'Приложите телефон',
+    tag_aria: 'Что открывает табличка halo — показать',
+    fan: ['Wi-Fi', 'Меню', 'Отзывы', 'Сервис', 'Такси', 'Статистика'],
+    caps_kicker: 'Что открывается одним касанием',
+    caps: [
+      ['Wi-Fi', 'Гость подключается сам — персонал не диктует пароль'],
+      ['Меню и прайс', 'Всегда актуальные, без печати и переклейки'],
+      ['Отзывы с фильтром', 'Хорошие — на карты, плохие — лично вам'],
+      ['Обслуживание номера', 'Уборка, полотенца, завтрак — в два касания'],
+      ['Вызов такси', 'Заявка уходит на ресепшен мгновенно'],
+      ['Запись на приём', 'Для салонов, клиник и автосервисов'],
+      ['Статистика', 'Сканы, оценки и заявки — в цифрах'],
+    ],
+    trump_kicker: 'Наш козырь',
+    trump_h2: <>Плохой отзыв не должен попасть в&nbsp;интернет</>,
+    try_hint: 'Попробуйте: поставьте оценку',
+    try_good: '→ Яндекс · Google · 2ГИС',
+    try_bad: '→ вам в Telegram, не в интернет',
+    star_aria: (n) => `Оценка ${n} из 5`,
+    good_mark: '4–5★',
+    good_text: 'Довольный гость в одно касание уходит оставлять отзыв на Яндекс, Google или 2ГИС.',
+    bad_mark: '1–3★',
+    bad_text: 'Недовольный — пишет вам лично в Telegram. За три секунды, пока он ещё за столиком. В интернет жалоба не попадает.',
+    how_kicker: 'Как это работает',
+    steps: [
+      'Гость прикладывает телефон к табличке',
+      'Открывается страница вашего заведения — без приложений',
+      'Wi-Fi, меню, заявки и отзывы — всё в одном месте',
+    ],
+    who_kicker: 'Для кого',
+    audience: 'Отели · Кафе · Барбершопы · Клиники · Автосервисы',
+    contact_h2: 'Покажем на вашем заведении за 10 минут',
+    footer: 'halo · Ташкент · gethalo.uz',
+  },
+}
 
-const CAPABILITIES = [
-  { Icon: Wifi, title: 'Wi-Fi', text: 'Гость подключается сам — персонал не диктует пароль' },
-  { Icon: BookOpen, title: 'Меню и прайс', text: 'Всегда актуальные, без печати и переклейки' },
-  { Icon: Star, title: 'Отзывы с фильтром', text: 'Хорошие — на карты, плохие — лично вам' },
-  { Icon: BellRing, title: 'Обслуживание номера', text: 'Уборка, полотенца, завтрак — в два касания' },
-  { Icon: Car, title: 'Вызов такси', text: 'Заявка уходит на ресепшен мгновенно' },
-  { Icon: Calendar, title: 'Запись на приём', text: 'Для салонов, клиник и автосервисов' },
-  { Icon: BarChart3, title: 'Статистика', text: 'Сканы, оценки и заявки — в цифрах' },
-]
-
-const STEPS = [
-  'Гость прикладывает телефон к табличке',
-  'Открывается страница вашего заведения — без приложений',
-  'Wi-Fi, меню, заявки и отзывы — всё в одном месте',
-]
+const FAN_ICONS = [Wifi, BookOpen, Star, BellRing, Car, BarChart3]
+const CAP_ICONS = [Wifi, BookOpen, Star, BellRing, Car, Calendar, BarChart3]
 
 const REDUCED = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -60,7 +123,7 @@ function Arcs({ className }) {
 }
 
 /* ─── Сигнатура: физический тег ─── */
-function HeroTag() {
+function HeroTag({ c }) {
   const [open, setOpen] = useState(false)
   const [burst, setBurst] = useState(0)
   const touched = useRef(false)
@@ -124,24 +187,20 @@ function HeroTag() {
       {/* орбита возможностей: разлетаются по кругу и вращаются вокруг таблички */}
       <div className={`lp-fan ${open ? 'open' : ''}`} aria-hidden={!open}>
         <ul className="lp-ring">
-          {FAN.map(({ Icon, label, short }, i) => (
-            <li
-              key={label}
-              style={{ '--a': `${i * 60}deg`, transitionDelay: open ? `${140 + i * 55}ms` : '0ms' }}
-            >
-              <span className="lp-pill">
-                <Icon size={17} strokeWidth={1.9} />
-                {short ? (
-                  <>
-                    <span className="lp-pill-full">{label}</span>
-                    <span className="lp-pill-short">{short}</span>
-                  </>
-                ) : (
-                  label
-                )}
-              </span>
-            </li>
-          ))}
+          {c.fan.map((label, i) => {
+            const Icon = FAN_ICONS[i]
+            return (
+              <li
+                key={i}
+                style={{ '--a': `${i * 60}deg`, transitionDelay: open ? `${140 + i * 55}ms` : '0ms' }}
+              >
+                <span className="lp-pill">
+                  <Icon size={17} strokeWidth={1.9} />
+                  {label}
+                </span>
+              </li>
+            )
+          })}
         </ul>
       </div>
 
@@ -152,11 +211,11 @@ function HeroTag() {
           className="lp-tag"
           ref={tagRef}
           onClick={() => activate(false)}
-          aria-label="Что открывает табличка halo — показать"
+          aria-label={c.tag_aria}
         >
           <span className="lp-tag-gloss" aria-hidden="true" />
           <Arcs className="lp-tag-arcs" />
-          <span className="lp-tag-caption">Приложите телефон</span>
+          <span className="lp-tag-caption">{c.tag_caption}</span>
         </button>
       </div>
     </div>
@@ -164,6 +223,8 @@ function HeroTag() {
 }
 
 export default function LandingPage() {
+  const { lang } = useLang()
+  const c = L[lang]
   const [tStars, setTStars] = useState(0) // звёзды в секции «козырь»
 
   // плавное появление при скролле (устойчиво к быстрым прыжкам скролла)
@@ -195,7 +256,11 @@ export default function LandingPage() {
   }, [])
 
   useEffect(() => {
-    document.title = 'halo — умные NFC-таблички для бизнеса | Узбекистан'
+    document.title = c.title
+    document.documentElement.lang = lang
+  }, [lang, c.title])
+
+  useEffect(() => {
     if (!document.getElementById('lp-fonts')) {
       const link = document.createElement('link')
       link.id = 'lp-fonts'
@@ -210,6 +275,8 @@ export default function LandingPage() {
 
   return (
     <div className="lp">
+      <LangSwitch className="lp-lang" />
+
       {/* ─── HERO ─── */}
       <section className="lp-hero">
         <div className="lp-hero-inner">
@@ -218,52 +285,52 @@ export default function LandingPage() {
               <img src={`${base}halo.svg`} alt="" />
               halo
             </div>
-            <h1 className="lp-display">Одно касание — и&nbsp;гость получает всё</h1>
-            <p className="lp-hero-sub">
-              Умная NFC-табличка для заведений: Wi-Fi, меню, отзывы, вызов такси, обслуживание
-              номера. Гость прикладывает телефон — и всё открывается за секунду, без приложений.
-            </p>
+            <h1 className="lp-display">{c.h1}</h1>
+            <p className="lp-hero-sub">{c.sub}</p>
             <div className="lp-cta">
               <a className="lp-btn lp-btn-solid" href={`${base}v/demo`}>
-                Открыть демо
+                {c.demo}
               </a>
               <a className="lp-btn lp-btn-ghost" href={TELEGRAM_URL} target="_blank" rel="noreferrer">
-                Написать в Telegram
+                {c.write_tg}
               </a>
             </div>
           </div>
-          <HeroTag />
+          <HeroTag c={c} />
         </div>
       </section>
 
       {/* ─── ВОЗМОЖНОСТИ ─── */}
       <section className="lp-section">
-        <div className="lp-kicker">Что открывается одним касанием</div>
+        <div className="lp-kicker">{c.caps_kicker}</div>
         <ul className="lp-caps">
-          {CAPABILITIES.map(({ Icon, title, text }, i) => (
-            <li key={title} className="lp-reveal" style={{ transitionDelay: `${i * 45}ms` }}>
-              <Icon size={20} strokeWidth={1.8} className="lp-cap-icon" />
-              <span className="lp-cap-title">{title}</span>
-              <span className="lp-cap-text">{text}</span>
-            </li>
-          ))}
+          {c.caps.map(([title, text], i) => {
+            const Icon = CAP_ICONS[i]
+            return (
+              <li key={title} className="lp-reveal" style={{ transitionDelay: `${i * 45}ms` }}>
+                <Icon size={20} strokeWidth={1.8} className="lp-cap-icon" />
+                <span className="lp-cap-title">{title}</span>
+                <span className="lp-cap-text">{text}</span>
+              </li>
+            )
+          })}
         </ul>
       </section>
 
       {/* ─── КОЗЫРЬ: ФИЛЬТР ОТЗЫВОВ ─── */}
       <section className="lp-section lp-trump">
-        <div className="lp-kicker">Наш козырь</div>
-        <h2 className="lp-display lp-reveal">Плохой отзыв не должен попасть в&nbsp;интернет</h2>
+        <div className="lp-kicker">{c.trump_kicker}</div>
+        <h2 className="lp-display lp-reveal">{c.trump_h2}</h2>
 
         <div className="lp-trump-try lp-reveal">
-          <div className="lp-trump-stars" role="group" aria-label="Попробуйте: поставьте оценку">
+          <div className="lp-trump-stars" role="group" aria-label={c.try_hint}>
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
                 type="button"
                 className={`lp-tstar ${tStars >= n ? 'on' : ''}`}
                 onClick={() => setTStars(n)}
-                aria-label={`Оценка ${n} из 5`}
+                aria-label={c.star_aria(n)}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" />
@@ -272,28 +339,23 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="lp-trump-caption" aria-live="polite">
-            {tStars === 0 && 'Попробуйте: поставьте оценку'}
-            {tStars >= 4 && '→ Яндекс · Google · 2ГИС'}
-            {tStars >= 1 && tStars <= 3 && '→ вам в Telegram, не в интернет'}
+            {tStars === 0 && c.try_hint}
+            {tStars >= 4 && c.try_good}
+            {tStars >= 1 && tStars <= 3 && c.try_bad}
           </div>
         </div>
 
         <div className="lp-trump-cols">
           <div className="lp-reveal">
             <div className={`lp-trump-col ${tStars >= 1 && tStars <= 3 ? 'dim' : ''}`}>
-              <div className="lp-trump-mark lp-trump-good">4–5★</div>
-              <p>
-                Довольный гость в одно касание уходит оставлять отзыв на Яндекс, Google или 2ГИС.
-              </p>
+              <div className="lp-trump-mark lp-trump-good">{c.good_mark}</div>
+              <p>{c.good_text}</p>
             </div>
           </div>
           <div className="lp-reveal" style={{ transitionDelay: '60ms' }}>
             <div className={`lp-trump-col ${tStars >= 4 ? 'dim' : ''}`}>
-              <div className="lp-trump-mark">1–3★</div>
-              <p>
-                Недовольный — пишет вам лично в Telegram. За три секунды, пока он ещё за столиком.
-                В интернет жалоба не попадает.
-              </p>
+              <div className="lp-trump-mark">{c.bad_mark}</div>
+              <p>{c.bad_text}</p>
             </div>
           </div>
         </div>
@@ -301,9 +363,9 @@ export default function LandingPage() {
 
       {/* ─── КАК РАБОТАЕТ ─── */}
       <section className="lp-section">
-        <div className="lp-kicker">Как это работает</div>
+        <div className="lp-kicker">{c.how_kicker}</div>
         <ol className="lp-steps">
-          {STEPS.map((s, i) => (
+          {c.steps.map((s, i) => (
             <li key={i} className="lp-reveal" style={{ transitionDelay: `${i * 70}ms` }}>
               <span className="lp-step-num">{String(i + 1).padStart(2, '0')}</span>
               <span>{s}</span>
@@ -314,17 +376,17 @@ export default function LandingPage() {
 
       {/* ─── ДЛЯ КОГО ─── */}
       <section className="lp-section">
-        <div className="lp-kicker">Для кого</div>
-        <p className="lp-display lp-audience lp-reveal">Отели · Кафе · Барбершопы · Клиники · Автосервисы</p>
+        <div className="lp-kicker">{c.who_kicker}</div>
+        <p className="lp-display lp-audience lp-reveal">{c.audience}</p>
       </section>
 
       {/* ─── КОНТАКТ ─── */}
       <section className="lp-section lp-contact">
         <Arcs className="lp-contact-arcs" />
-        <h2 className="lp-display">Покажем на вашем заведении за 10 минут</h2>
+        <h2 className="lp-display">{c.contact_h2}</h2>
         <div className="lp-cta">
           <a className="lp-btn lp-btn-solid" href={TELEGRAM_URL} target="_blank" rel="noreferrer">
-            <Send size={18} strokeWidth={2} /> Написать в Telegram
+            <Send size={18} strokeWidth={2} /> {c.write_tg}
           </a>
           <a className="lp-btn lp-btn-ghost" href={`tel:${PHONE.replace(/[^+\d]/g, '')}`}>
             <Phone size={18} strokeWidth={2} /> {PHONE}
@@ -332,7 +394,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="lp-footer">halo · Ташкент · gethalo.uz</footer>
+      <footer className="lp-footer">{c.footer}</footer>
     </div>
   )
 }
