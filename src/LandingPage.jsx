@@ -131,22 +131,55 @@ function HeroTag() {
         ))}
       </ul>
 
-      {/* сама табличка */}
-      <button
-        type="button"
-        className="lp-tag"
-        ref={tagRef}
-        onClick={() => activate(false)}
-        aria-label="Что открывает табличка halo — показать"
-      >
-        <Arcs className="lp-tag-arcs" />
-        <span className="lp-tag-caption">Приложите телефон</span>
-      </button>
+      {/* сама табличка (обёртка — лёгкое парение) */}
+      <div className="lp-tag-float">
+        <button
+          type="button"
+          className="lp-tag"
+          ref={tagRef}
+          onClick={() => activate(false)}
+          aria-label="Что открывает табличка halo — показать"
+        >
+          <span className="lp-tag-gloss" aria-hidden="true" />
+          <Arcs className="lp-tag-arcs" />
+          <span className="lp-tag-caption">Приложите телефон</span>
+        </button>
+      </div>
     </div>
   )
 }
 
 export default function LandingPage() {
+  const [tStars, setTStars] = useState(0) // звёзды в секции «козырь»
+
+  // плавное появление при скролле (устойчиво к быстрым прыжкам скролла)
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll('.lp-reveal'))
+    if (REDUCED()) {
+      els.forEach((el) => el.classList.add('in'))
+      return
+    }
+    let ticking = false
+    function check() {
+      ticking = false
+      const limit = window.innerHeight * 0.92
+      for (const el of els) {
+        if (!el.classList.contains('in') && el.getBoundingClientRect().top < limit) {
+          el.classList.add('in')
+        }
+      }
+    }
+    function onScroll() {
+      if (!ticking) {
+        ticking = true
+        requestAnimationFrame(check)
+      }
+    }
+    check()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   useEffect(() => {
     document.title = 'halo — умные NFC-таблички для заведений'
     if (!document.getElementById('lp-fonts')) {
@@ -193,8 +226,8 @@ export default function LandingPage() {
       <section className="lp-section">
         <div className="lp-kicker">Что открывается одним касанием</div>
         <ul className="lp-caps">
-          {CAPABILITIES.map(({ Icon, title, text }) => (
-            <li key={title}>
+          {CAPABILITIES.map(({ Icon, title, text }, i) => (
+            <li key={title} className="lp-reveal" style={{ transitionDelay: `${i * 45}ms` }}>
               <Icon size={20} strokeWidth={1.8} className="lp-cap-icon" />
               <span className="lp-cap-title">{title}</span>
               <span className="lp-cap-text">{text}</span>
@@ -206,18 +239,48 @@ export default function LandingPage() {
       {/* ─── КОЗЫРЬ: ФИЛЬТР ОТЗЫВОВ ─── */}
       <section className="lp-section lp-trump">
         <div className="lp-kicker">Наш козырь</div>
-        <h2 className="lp-display">Плохой отзыв не должен попасть в&nbsp;интернет</h2>
-        <div className="lp-trump-cols">
-          <div className="lp-trump-col">
-            <div className="lp-trump-mark lp-trump-good">4–5★</div>
-            <p>Довольный гость в одно касание уходит оставлять отзыв на Яндекс, Google или 2ГИС.</p>
+        <h2 className="lp-display lp-reveal">Плохой отзыв не должен попасть в&nbsp;интернет</h2>
+
+        <div className="lp-trump-try lp-reveal">
+          <div className="lp-trump-stars" role="group" aria-label="Попробуйте: поставьте оценку">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`lp-tstar ${tStars >= n ? 'on' : ''}`}
+                onClick={() => setTStars(n)}
+                aria-label={`Оценка ${n} из 5`}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" />
+                </svg>
+              </button>
+            ))}
           </div>
-          <div className="lp-trump-col">
-            <div className="lp-trump-mark">1–3★</div>
-            <p>
-              Недовольный — пишет вам лично в Telegram. За три секунды, пока он ещё за столиком. В
-              интернет жалоба не попадает.
-            </p>
+          <div className="lp-trump-caption" aria-live="polite">
+            {tStars === 0 && 'Попробуйте: поставьте оценку'}
+            {tStars >= 4 && '→ Яндекс · Google · 2ГИС'}
+            {tStars >= 1 && tStars <= 3 && '→ вам в Telegram, не в интернет'}
+          </div>
+        </div>
+
+        <div className="lp-trump-cols">
+          <div className="lp-reveal">
+            <div className={`lp-trump-col ${tStars >= 1 && tStars <= 3 ? 'dim' : ''}`}>
+              <div className="lp-trump-mark lp-trump-good">4–5★</div>
+              <p>
+                Довольный гость в одно касание уходит оставлять отзыв на Яндекс, Google или 2ГИС.
+              </p>
+            </div>
+          </div>
+          <div className="lp-reveal" style={{ transitionDelay: '60ms' }}>
+            <div className={`lp-trump-col ${tStars >= 4 ? 'dim' : ''}`}>
+              <div className="lp-trump-mark">1–3★</div>
+              <p>
+                Недовольный — пишет вам лично в Telegram. За три секунды, пока он ещё за столиком.
+                В интернет жалоба не попадает.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -227,7 +290,7 @@ export default function LandingPage() {
         <div className="lp-kicker">Как это работает</div>
         <ol className="lp-steps">
           {STEPS.map((s, i) => (
-            <li key={i}>
+            <li key={i} className="lp-reveal" style={{ transitionDelay: `${i * 70}ms` }}>
               <span className="lp-step-num">{String(i + 1).padStart(2, '0')}</span>
               <span>{s}</span>
             </li>
@@ -238,7 +301,7 @@ export default function LandingPage() {
       {/* ─── ДЛЯ КОГО ─── */}
       <section className="lp-section">
         <div className="lp-kicker">Для кого</div>
-        <p className="lp-display lp-audience">Отели · Кафе · Барбершопы · Клиники · Автосервисы</p>
+        <p className="lp-display lp-audience lp-reveal">Отели · Кафе · Барбершопы · Клиники · Автосервисы</p>
       </section>
 
       {/* ─── КОНТАКТ ─── */}

@@ -1308,19 +1308,52 @@ body {
   transform: scale(0.97) !important;
 }
 
-/* глянцевый блик по диагонали */
-.lp-tag::before {
-  content: '';
+/* глянцевый блик: статичный + периодический «пробег» по акрилу */
+.lp-tag-gloss {
   position: absolute;
   inset: 0;
   border-radius: 16px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lp-tag-gloss::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
   background: linear-gradient(
     115deg,
     transparent 42%,
-    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.6) 50%,
     transparent 58%
   );
-  pointer-events: none;
+  transform: translateX(-120%);
+  animation: lp-gloss 6.5s ease-in-out infinite;
+}
+
+@keyframes lp-gloss {
+  0%,
+  62% {
+    transform: translateX(-120%);
+  }
+  80%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+/* лёгкое парение таблички */
+.lp-tag-float {
+  animation: lp-float 7s ease-in-out infinite alternate;
+}
+
+@keyframes lp-float {
+  from {
+    transform: translateY(-4px);
+  }
+  to {
+    transform: translateY(5px);
+  }
 }
 
 .lp-tag-arcs {
@@ -1607,5 +1640,94 @@ body {
   .lp *::after {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* ─── появление при скролле ─── */
+.lp-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.22, 0.8, 0.36, 1);
+}
+
+.lp-reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ─── интерактив в секции «козырь» ─── */
+.lp-trump-try {
+  margin-top: 40px;
+}
+
+.lp-trump-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.lp-tstar {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: rgba(7, 11, 20, 0.14);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+}
+
+.lp-tstar svg {
+  width: 30px;
+  height: 30px;
+  fill: currentColor;
+  display: block;
+}
+
+.lp-tstar.on {
+  color: var(--signal);
+  transform: scale(1.08);
+}
+
+.lp-tstar:hover {
+  transform: scale(1.15);
+}
+
+.lp-trump-caption {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mist);
+  margin-top: 12px;
+  min-height: 16px;
+}
+
+.lp-trump-col {
+  transition: opacity 0.4s ease;
+}
+
+.lp-trump-col.dim {
+  opacity: 0.3;
+}
+
+/* ─── пульс дуг в контактах ─── */
+.lp-contact-arcs path {
+  animation: lp-arc-pulse 3s ease-in-out infinite;
+}
+
+.lp-contact-arcs path:nth-child(2) {
+  animation-delay: 0.35s;
+}
+
+.lp-contact-arcs path:nth-child(3) {
+  animation-delay: 0.7s;
+}
+
+@keyframes lp-arc-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
   }
 }
