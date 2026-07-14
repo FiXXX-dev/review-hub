@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   Wifi,
   BookOpen,
+  Star,
   BellRing,
   Car,
-  Calendar,
   BarChart3,
-  MapPin,
+  Calendar,
   Send,
   Phone,
 } from 'lucide-react'
@@ -15,35 +15,41 @@ import {
 const TELEGRAM_URL = 'https://t.me/bangbangrs'
 const PHONE = '+998 95 183-66-36'
 
-const FEATURES = [
-  { Icon: Wifi, text: 'Wi-Fi без вопросов персоналу' },
-  { Icon: BookOpen, text: 'Меню и прайс' },
-  { Icon: BellRing, text: 'Обслуживание номера' },
-  { Icon: Car, text: 'Вызов такси' },
-  { Icon: Calendar, text: 'Запись на приём' },
-  { Icon: BarChart3, text: 'Статистика сканов' },
+const FAN = [
+  { Icon: Wifi, label: 'Wi-Fi' },
+  { Icon: BookOpen, label: 'Меню' },
+  { Icon: Star, label: 'Отзывы' },
+  { Icon: BellRing, label: 'Обслуживание' },
+  { Icon: Car, label: 'Такси' },
+  { Icon: BarChart3, label: 'Статистика' },
 ]
 
-const PROBLEMS = [
-  'Одна единица в Яндексе стоит вам десятков клиентов',
-  'Довольные гости молчат — они просто уходят',
-  'О проблеме вы узнаёте последним',
+const CAPABILITIES = [
+  { Icon: Wifi, title: 'Wi-Fi', text: 'Гость подключается сам — персонал не диктует пароль' },
+  { Icon: BookOpen, title: 'Меню и прайс', text: 'Всегда актуальные, без печати и переклейки' },
+  { Icon: Star, title: 'Отзывы с фильтром', text: 'Хорошие — на карты, плохие — лично вам' },
+  { Icon: BellRing, title: 'Обслуживание номера', text: 'Уборка, полотенца, завтрак — в два касания' },
+  { Icon: Car, title: 'Вызов такси', text: 'Заявка уходит на ресепшен мгновенно' },
+  { Icon: Calendar, title: 'Запись на приём', text: 'Для салонов, клиник и автосервисов' },
+  { Icon: BarChart3, title: 'Статистика', text: 'Сканы, оценки и заявки — в цифрах' },
 ]
 
 const STEPS = [
   'Гость прикладывает телефон к табличке',
-  'Открывается страница вашего заведения',
-  'Ставит оценку',
-  'Хорошая — уходит на карты. Плохая — приходит вам в Telegram за 3 секунды',
+  'Открывается страница вашего заведения — без приложений',
+  'Wi-Fi, меню, заявки и отзывы — всё в одном месте',
 ]
 
 const REDUCED = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/* Дуги halo — графический мотив (разделитель секций) */
-function ArcDivider() {
+const NO_HOVER = () =>
+  typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
+
+/* Дуги halo */
+function Arcs({ className }) {
   return (
-    <svg className="lp-arcs" viewBox="0 0 100 56" aria-hidden="true">
+    <svg className={className} viewBox="0 0 100 56" aria-hidden="true">
       <g fill="none" strokeLinecap="round">
         <path d="M14 52 A38 38 0 1 1 86 52" strokeWidth="5" />
         <path d="M27 50 A25 25 0 1 1 73 50" strokeWidth="5" />
@@ -53,155 +59,96 @@ function ArcDivider() {
   )
 }
 
-/* ─── Живая развилка: телефон + пути на карты / в Telegram ─── */
-function HeroFork() {
-  const [stars, setStars] = useState(0) // 0 = idle
-  const interacted = useRef(false)
+/* ─── Сигнатура: физический тег ─── */
+function HeroTag() {
+  const [open, setOpen] = useState(false)
+  const [burst, setBurst] = useState(0)
+  const touched = useRef(false)
   const timers = useRef([])
-
-  const state = stars === 0 ? 'idle' : stars >= 4 ? 'good' : 'bad'
+  const sceneRef = useRef(null)
+  const tagRef = useRef(null)
 
   function clearTimers() {
     timers.current.forEach(clearTimeout)
     timers.current = []
   }
 
-  function pick(n) {
-    interacted.current = true
+  function activate(auto = false) {
+    if (!auto) touched.current = true
     clearTimers()
-    setStars(n)
+    setBurst((b) => b + 1)
+    setOpen(true)
+    // через 5 секунд бездействия — мягко сворачивается
+    timers.current.push(setTimeout(() => setOpen(false), 5000))
   }
 
-  // автопрокрутка: 4 секунды тишины → сценарий 2★ → сброс
+  // автозапуск: один раз через 3 секунды, если не тапнули
   useEffect(() => {
     if (REDUCED()) {
-      setStars(2) // статика: сразу показываем перехват
+      setOpen(true) // статика: показываем разложенные карточки
       return
     }
-    if (interacted.current) return
-    if (state === 'idle') {
-      timers.current.push(
-        setTimeout(() => {
-          if (!interacted.current) setStars(2)
-        }, 4000)
-      )
-    } else {
-      timers.current.push(
-        setTimeout(() => {
-          if (!interacted.current) setStars(0)
-        }, 3600)
-      )
+    const t = setTimeout(() => {
+      if (!touched.current) activate(true)
+    }, 3000)
+    return () => {
+      clearTimeout(t)
+      clearTimers()
     }
-    return clearTimers
-  }, [state])
+  }, [])
 
-  const starEls = [1, 2, 3, 4, 5].map((n) => (
-    <button
-      key={n}
-      type="button"
-      className={`lp-star ${stars >= n ? 'on' : ''}`}
-      onClick={() => pick(n)}
-      aria-label={`Оценка ${n} из 5`}
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" />
-      </svg>
-    </button>
-  ))
+  // 3D-наклон за курсором (только там, где есть курсор)
+  function onMove(e) {
+    if (NO_HOVER() || REDUCED() || !tagRef.current || !sceneRef.current) return
+    const r = sceneRef.current.getBoundingClientRect()
+    const px = (e.clientX - r.left) / r.width - 0.5
+    const py = (e.clientY - r.top) / r.height - 0.5
+    tagRef.current.style.transform = `rotateX(${(-py * 8).toFixed(2)}deg) rotateY(${(px * 8).toFixed(2)}deg)`
+  }
+
+  function onLeave() {
+    if (tagRef.current) tagRef.current.style.transform = ''
+  }
 
   return (
-    <div className={`lp-fork lp-fork-${state}`}>
-      {/* рельсы: десктоп — влево/вниз от телефона */}
-      <div className="lp-rails lp-rails-desktop" aria-hidden="true">
-        <svg viewBox="0 0 230 560" preserveAspectRatio="none">
-          <path className="lp-rail-bg" d="M226 250 C 150 250, 130 120, 62 120" />
-          <path className="lp-rail-bg" d="M226 270 C 150 270, 140 430, 62 430" />
-          <path className="lp-rail lp-rail-good" pathLength="1" d="M226 250 C 150 250, 130 120, 62 120" />
-          <path className="lp-rail lp-rail-bad" pathLength="1" d="M226 270 C 150 270, 140 430, 62 430" />
-        </svg>
-        <div className="lp-node lp-node-maps" style={{ left: 14, top: 96 }}>
-          <MapPin size={22} strokeWidth={1.9} />
-        </div>
-        <div className="lp-node lp-node-tg" style={{ left: 14, top: 406 }}>
-          <Send size={20} strokeWidth={1.9} />
-        </div>
-        <div className="lp-rail-label lp-label-good" style={{ left: 0, top: 148 }}>
-          Отзыв ушёл на карты
-        </div>
-        <div className="lp-rail-label lp-label-bad" style={{ left: 0, top: 458 }}>
-          Жалоба перехвачена · не попала в интернет
-        </div>
-      </div>
+    <div className="lp-scene" ref={sceneRef} onMouseMove={onMove} onMouseLeave={onLeave}>
+      {/* волны от касания */}
+      {burst > 0 && (
+        <span key={burst} className="lp-waves" aria-hidden="true">
+          <i />
+          <i style={{ animationDelay: '120ms' }} />
+          <i style={{ animationDelay: '240ms' }} />
+        </span>
+      )}
 
-      {/* телефон */}
-      <div className="lp-phone">
-        <div className="lp-phone-screen">
-          <div className="lp-screen-head">
-            <span className="lp-screen-dot" />
-            Кофейня «Демо»
-          </div>
-          <div className="lp-screen-title">Оцените нас</div>
-          <div className="lp-stars" role="group" aria-label="Поставьте оценку">
-            {starEls}
-          </div>
+      {/* веер возможностей */}
+      <ul className={`lp-fan ${open ? 'open' : ''}`} aria-hidden={!open}>
+        {FAN.map(({ Icon, label }, i) => (
+          <li key={label} style={{ transitionDelay: open ? `${140 + i * 60}ms` : '0ms' }}>
+            <Icon size={17} strokeWidth={1.9} />
+            {label}
+          </li>
+        ))}
+      </ul>
 
-          {state === 'idle' && <p className="lp-screen-hint">Тапните звёзды — попробуйте сами</p>}
-
-          {state === 'good' && (
-            <div className="lp-screen-panel">
-              <p className="lp-screen-mono">Спасибо! Поделитесь оценкой:</p>
-              <div className="lp-mini-btn">
-                <span className="lp-dot" style={{ background: '#FC3F1D' }} />
-                Яндекс.Карты
-              </div>
-              <div className="lp-mini-btn">
-                <span className="lp-dot" style={{ background: '#4285F4' }} />
-                Google Карты
-              </div>
-              <div className="lp-mini-btn">
-                <span className="lp-dot" style={{ background: '#19AA1E' }} />
-                2ГИС
-              </div>
-            </div>
-          )}
-
-          {state === 'bad' && (
-            <div className="lp-screen-panel">
-              <p className="lp-screen-mono">Что пошло не так?</p>
-              <div className="lp-mini-input">Кофе остыл, ждали 20 минут…</div>
-              <div className="lp-mini-btn lp-mini-btn-solid">Отправить владельцу</div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* рельсы: мобильный — вниз от телефона */}
-      <div className="lp-rails lp-rails-mobile" aria-hidden="true">
-        <svg viewBox="0 0 320 120" preserveAspectRatio="none">
-          <path className="lp-rail-bg" d="M150 0 C 150 60, 70 50, 64 104" />
-          <path className="lp-rail-bg" d="M170 0 C 170 60, 250 50, 256 104" />
-          <path className="lp-rail lp-rail-good" pathLength="1" d="M150 0 C 150 60, 70 50, 64 104" />
-          <path className="lp-rail lp-rail-bad" pathLength="1" d="M170 0 C 170 60, 250 50, 256 104" />
-        </svg>
-        <div className="lp-mnode lp-node lp-node-maps">
-          <MapPin size={20} strokeWidth={1.9} />
-        </div>
-        <div className="lp-mnode lp-node lp-node-tg">
-          <Send size={18} strokeWidth={1.9} />
-        </div>
-        <div className="lp-mlabel lp-rail-label lp-label-good">Отзыв ушёл на карты</div>
-        <div className="lp-mlabel lp-rail-label lp-label-bad">
-          Жалоба перехвачена · не попала в интернет
-        </div>
-      </div>
+      {/* сама табличка */}
+      <button
+        type="button"
+        className="lp-tag"
+        ref={tagRef}
+        onClick={() => activate(false)}
+        aria-label="Что открывает табличка halo — показать"
+      >
+        <Arcs className="lp-tag-arcs" />
+        <span className="lp-tag-caption">Приложите телефон</span>
+      </button>
     </div>
   )
 }
 
 export default function LandingPage() {
   useEffect(() => {
-    document.title = 'halo — плохой отзыв не должен попасть в интернет'
-    // шрифты нужны только лендингу — грузим при монтировании
+    document.title = 'halo — умные NFC-таблички для заведений'
     if (!document.getElementById('lp-fonts')) {
       const link = document.createElement('link')
       link.id = 'lp-fonts'
@@ -221,15 +168,13 @@ export default function LandingPage() {
         <div className="lp-hero-inner">
           <div className="lp-hero-copy">
             <div className="lp-logo">
-              <img src={`${base}halo.svg`} alt="halo" />
+              <img src={`${base}halo.svg`} alt="" />
               halo
             </div>
-            <h1 className="lp-display">
-              Плохой отзыв не должен попасть в&nbsp;интернет
-            </h1>
+            <h1 className="lp-display">Одно касание — и&nbsp;гость получает всё</h1>
             <p className="lp-hero-sub">
-              Гость прикладывает телефон к табличке. Доволен — идёт оставлять отзыв на картах.
-              Недоволен — пишет вам напрямую, а не в Google.
+              Умная NFC-табличка для заведений: Wi-Fi, меню, отзывы, вызов такси, обслуживание
+              номера. Гость прикладывает телефон — и всё открывается за секунду, без приложений.
             </p>
             <div className="lp-cta">
               <a className="lp-btn lp-btn-solid" href={`${base}v/demo`}>
@@ -240,23 +185,42 @@ export default function LandingPage() {
               </a>
             </div>
           </div>
-          <HeroFork />
+          <HeroTag />
         </div>
       </section>
 
-      {/* ─── ПРОБЛЕМА ─── */}
+      {/* ─── ВОЗМОЖНОСТИ ─── */}
       <section className="lp-section">
-        <div className="lp-kicker">Проблема</div>
-        <div className="lp-problems">
-          {PROBLEMS.map((p) => (
-            <p className="lp-display lp-problem" key={p}>
-              {p}
-            </p>
+        <div className="lp-kicker">Что открывается одним касанием</div>
+        <ul className="lp-caps">
+          {CAPABILITIES.map(({ Icon, title, text }) => (
+            <li key={title}>
+              <Icon size={20} strokeWidth={1.8} className="lp-cap-icon" />
+              <span className="lp-cap-title">{title}</span>
+              <span className="lp-cap-text">{text}</span>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      <ArcDivider />
+      {/* ─── КОЗЫРЬ: ФИЛЬТР ОТЗЫВОВ ─── */}
+      <section className="lp-section lp-trump">
+        <div className="lp-kicker">Наш козырь</div>
+        <h2 className="lp-display">Плохой отзыв не должен попасть в&nbsp;интернет</h2>
+        <div className="lp-trump-cols">
+          <div className="lp-trump-col">
+            <div className="lp-trump-mark lp-trump-good">4–5★</div>
+            <p>Довольный гость в одно касание уходит оставлять отзыв на Яндекс, Google или 2ГИС.</p>
+          </div>
+          <div className="lp-trump-col">
+            <div className="lp-trump-mark">1–3★</div>
+            <p>
+              Недовольный — пишет вам лично в Telegram. За три секунды, пока он ещё за столиком. В
+              интернет жалоба не попадает.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* ─── КАК РАБОТАЕТ ─── */}
       <section className="lp-section">
@@ -265,39 +229,21 @@ export default function LandingPage() {
           {STEPS.map((s, i) => (
             <li key={i}>
               <span className="lp-step-num">{String(i + 1).padStart(2, '0')}</span>
-              <span className="lp-step-text">{s}</span>
+              <span>{s}</span>
             </li>
           ))}
         </ol>
       </section>
 
-      <ArcDivider />
-
-      {/* ─── ЧТО ЕЩЁ УМЕЕТ ─── */}
-      <section className="lp-section">
-        <div className="lp-kicker">Что ещё умеет</div>
-        <div className="lp-features">
-          {FEATURES.map(({ Icon, text }) => (
-            <div className="lp-feature" key={text}>
-              <Icon size={20} strokeWidth={1.8} />
-              <span>{text}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <ArcDivider />
-
       {/* ─── ДЛЯ КОГО ─── */}
       <section className="lp-section">
         <div className="lp-kicker">Для кого</div>
-        <p className="lp-display lp-audience">
-          Отели · Кафе · Барбершопы · Клиники · Автосервисы
-        </p>
+        <p className="lp-display lp-audience">Отели · Кафе · Барбершопы · Клиники · Автосервисы</p>
       </section>
 
       {/* ─── КОНТАКТ ─── */}
       <section className="lp-section lp-contact">
+        <Arcs className="lp-contact-arcs" />
         <h2 className="lp-display">Покажем на вашем заведении за 10 минут</h2>
         <div className="lp-cta">
           <a className="lp-btn lp-btn-solid" href={TELEGRAM_URL} target="_blank" rel="noreferrer">
