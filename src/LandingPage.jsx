@@ -194,7 +194,7 @@ function HeroTag({ c }) {
             return (
               <li
                 key={i}
-                style={{ '--a': `${i * 60}deg`, transitionDelay: open ? `${140 + i * 55}ms` : '0ms' }}
+                style={{ '--a': `${i * 60}deg`, transitionDelay: open ? `${140 + i * 55}ms` : `${(5 - i) * 45}ms` }}
               >
                 <span className="lp-pill">
                   <Icon size={17} strokeWidth={1.9} />
