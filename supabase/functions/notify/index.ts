@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   try {
     const {
       venue_id, stars, message, contact, platform, type,
-      name, phone, service, preferred_time, room, request_type, comment,
+      name, phone, service, preferred_time, room, request_type, comment, table_no,
       destination, car_class, when_time, price_label,
     } = await req.json()
 
@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
     if (!token || !subs?.length) return json({ ok: true, sent: false })
 
     const roomNote = room && String(room).trim() ? `\nНомер: ${String(room).trim().slice(0, 20)}` : ''
+    const tableNote = table_no && String(table_no).trim() ? `\nСтол: ${String(table_no).trim().slice(0, 20)}` : ''
     const clean = (v: unknown, n: number) => (v ? String(v).trim().slice(0, n) : '')
     const text = isTaxi
       ? `🚕 ${room ? `Номер ${clean(room, 20)} — такси` : 'Такси'}\nКуда: ${clean(destination, 300)}\nКласс: ${
@@ -111,12 +112,12 @@ Deno.serve(async (req) => {
         : isAppointment
         ? `📅 Новая запись — ${venue.name}\n\nИмя: ${String(name).trim().slice(0, 200)}\nТелефон: ${String(phone).trim().slice(0, 100)}\nУслуга: ${
             (service && String(service).trim().slice(0, 200)) || 'не указана'
-          }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}${roomNote}`
+          }\nВремя: ${(preferred_time && String(preferred_time).trim().slice(0, 200)) || 'не указано'}${roomNote}${tableNote}`
         : platform
           ? `✅ ${starsNum}⭐ — посетитель ушёл оставлять отзыв на ${PLATFORM_NAMES[platform]}`
           : `⚠️ Оценка ${starsNum}⭐ — ${venue.name}\n\n"${String(message).trim().slice(0, 2000)}"\n\nКонтакт: ${
               (contact && String(contact).trim().slice(0, 200)) || 'не оставлен'
-            }${roomNote}`
+            }${roomNote}${tableNote}`
 
     let sent = 0
     await Promise.all(

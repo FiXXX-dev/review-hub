@@ -378,6 +378,7 @@ function VenueEditor({ venue, presets, onBack }) {
         <h1 className="admin-title">{isNew ? 'Новое заведение' : form.name}</h1>
 
         {!isNew && <PairingCard venue={venue} />}
+        {!isNew && <OwnersCard venue={venue} />}
 
         <form className="card admin-form" onSubmit={save}>
           <label className="admin-field">
@@ -769,6 +770,108 @@ function PairingCard({ venue }) {
         </div>
       </div>
       {code && <div className="pairing-code">{code}</div>}
+    </div>
+  )
+}
+
+/* ─── Владельцы и доступ к заведению (только суперадмин) ─── */
+function OwnersCard({ venue }) {
+  const [rows, setRows] = useState(null)
+  const [subs, setSubs] = useState([])
+  const [chatId, setChatId] = useState('')
+  const [role, setRole] = useState('owner')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function load() {
+    const [r, s] = await Promise.all([
+      supabase.from('user_roles').select('*').eq('venue_id', venue.id).order('created_at'),
+      supabase
+        .from('venue_subscribers')
+        .select('chat_id, phone, is_active')
+        .eq('venue_id', venue.id)
+        .eq('is_active', true),
+    ])
+    setRows(r.data ?? [])
+    setSubs(s.data ?? [])
+  }
+
+  useEffect(() => {
+    load()
+  }, [venue.id])
+
+  async function add(e) {
+    e.preventDefault()
+    const id = chatId.trim()
+    if (!id || busy) return
+    setBusy(true)
+    setError('')
+    const { error: err } = await supabase
+      .from('user_roles')
+      .upsert({ telegram_chat_id: id, venue_id: venue.id, role }, { onConflict: 'telegram_chat_id,venue_id' })
+    if (err) setError(/user_roles/.test(err.message) ? 'Выполни миграцию 0012 в Supabase' : err.message)
+    else setChatId('')
+    setBusy(false)
+    load()
+  }
+
+  async function remove(id) {
+    if (busy) return
+    setBusy(true)
+    await supabase.from('user_roles').delete().eq('id', id)
+    setBusy(false)
+    load()
+  }
+
+  return (
+    <div className="card admin-stats">
+      <h2 className="admin-subtitle">Владельцы и доступ</h2>
+      <p className="admin-hint">
+        Назначьте владельцу (или персоналу) доступ по его Telegram chat_id — он войдёт в кабинет
+        halo по своему номеру. chat_id виден ниже у тех, кто уже подключил бота.
+      </p>
+
+      {rows === null ? (
+        <div className="spinner" style={{ margin: '10px auto' }} />
+      ) : (
+        rows.map((r) => (
+          <div key={r.id} className="feedback-item owners-row">
+            <span className="feedback-text">
+              {r.telegram_chat_id}
+              <span className="owners-role">{r.role === 'owner' ? 'владелец' : 'персонал'}</span>
+            </span>
+            <button type="button" className="btn-link danger" onClick={() => remove(r.id)}>
+              Убрать
+            </button>
+          </div>
+        ))
+      )}
+      {rows && rows.length === 0 && <p className="admin-empty">Доступ пока никому не выдан.</p>}
+
+      <form className="owners-add" onSubmit={add}>
+        <input
+          type="text"
+          placeholder="Telegram chat_id"
+          value={chatId}
+          onChange={(e) => setChatId(e.target.value)}
+          list={`subs-${venue.id}`}
+        />
+        <datalist id={`subs-${venue.id}`}>
+          {subs.map((s) => (
+            <option key={s.chat_id} value={s.chat_id}>
+              {s.phone || ''}
+            </option>
+          ))}
+        </datalist>
+        <select value={role} onChange={(e) => setRole(e.target.value)}>
+          <option value="owner">владелец</option>
+          <option value="staff">персонал (только просмотр)</option>
+        </select>
+        <button type="submit" className="btn-link" disabled={busy || !chatId.trim()}>
+          Добавить
+        </button>
+      </form>
+      {error && <p className="admin-error">{error}</p>}
     </div>
   )
 }

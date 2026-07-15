@@ -1841,3 +1841,45 @@ body {
   margin: 0 auto 4px;
   display: block;
 }
+
+/* ─── Владельцы в админке ─── */
+.owners-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.owners-role {
+  margin-left: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.owners-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.owners-add input,
+.owners-add select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.owners-add input {
+  flex: 1;
+  min-width: 160px;
+}
+
+.btn-link.danger {
+  color: #dc2626;
+}

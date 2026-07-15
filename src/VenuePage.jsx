@@ -110,6 +110,9 @@ export default function VenuePage({ slug }) {
   const [room, setRoom] = useState(
     () => new URLSearchParams(window.location.search).get('room')?.trim().slice(0, 20) || ''
   )
+  // ?table=7 — номер стола (QR на столе кафе), уходит во все заявки/оценки
+  const tableNo =
+    new URLSearchParams(window.location.search).get('table')?.trim().slice(0, 20) || null
 
   const bgUrl = resolveAssetUrl(venue?.background_image_url)
 
@@ -230,7 +233,7 @@ export default function VenuePage({ slug }) {
       }
       continue
     }
-    const el = renderBlock(b, venue, room, setRoom)
+    const el = renderBlock(b, venue, room, setRoom, tableNo)
     if (el) rendered.push(el)
   }
 
@@ -288,23 +291,23 @@ export default function VenuePage({ slug }) {
   )
 }
 
-function renderBlock(block, venue, room, setRoom) {
+function renderBlock(block, venue, room, setRoom, tableNo) {
   const { type } = block
   switch (type) {
     case 'rating':
-      return <RatingBlock key={type} block={block} venue={venue} room={room} />
+      return <RatingBlock key={type} block={block} venue={venue} room={room} tableNo={tableNo} />
     case 'wifi':
       return venue.wifi_ssid ? <WifiBlock key={type} block={block} venue={venue} /> : null
     case 'appointment':
-      return <AppointmentBlock key={type} block={block} venue={venue} room={room} />
+      return <AppointmentBlock key={type} block={block} venue={venue} room={room} tableNo={tableNo} />
     case 'service':
     case 'services':
       // одна реализация: плитки с ценами из каталога services
       return (
-        <ServicesCatalogBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} />
+        <ServicesCatalogBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} tableNo={tableNo} />
       )
     case 'taxi':
-      return <TaxiBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} />
+      return <TaxiBlock key={type} block={block} venue={venue} room={room} setRoom={setRoom} tableNo={tableNo} />
     case 'contacts':
       return venue.address || venue.phone ? (
         <ContactsBlock key={type} block={block} venue={venue} />
@@ -328,7 +331,7 @@ function renderBlock(block, venue, room, setRoom) {
 }
 
 /* ─── Оценка (ядро продукта) ─── */
-function RatingBlock({ block, venue, room }) {
+function RatingBlock({ block, venue, room, tableNo }) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const [stars, setStars] = useState(0)
@@ -357,7 +360,7 @@ function RatingBlock({ block, venue, room }) {
     insertPending.current = true
     const { data } = await supabase
       .from('ratings')
-      .insert({ venue_id: venue.id, stars: n, room: room || null })
+      .insert({ venue_id: venue.id, stars: n, room: room || null, table_no: tableNo })
       .select('id')
       .single()
     insertPending.current = false
@@ -370,7 +373,7 @@ function RatingBlock({ block, venue, room }) {
     if (ratingId) {
       await supabase.rpc('rating_set_redirect', { p_rating_id: ratingId, p_platform: platform.key })
     }
-    await notifyApi({ venue_id: venue.id, rating_id: ratingId, stars, platform: platform.key })
+    await notifyApi({ venue_id: venue.id, rating_id: ratingId, stars, platform: platform.key, table_no: tableNo })
     window.location.href = url
   }
 
@@ -384,6 +387,7 @@ function RatingBlock({ block, venue, room }) {
       message: feedbackMsg.trim(),
       contact: feedbackContact.trim() || null,
       room: room || null,
+      table_no: tableNo,
     })
     await notifyApi({
       venue_id: venue.id,
@@ -391,6 +395,7 @@ function RatingBlock({ block, venue, room }) {
       message: feedbackMsg.trim(),
       contact: feedbackContact.trim() || null,
       room: room || null,
+      table_no: tableNo,
     })
     setSending(false)
     setDone(true)
@@ -520,7 +525,7 @@ function WifiBlock({ block, venue }) {
 }
 
 /* ─── Запись (имя, телефон, услуга, время) ─── */
-function AppointmentBlock({ block, venue, room }) {
+function AppointmentBlock({ block, venue, room, tableNo }) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -541,6 +546,7 @@ function AppointmentBlock({ block, venue, room }) {
       service: service.trim() || null,
       preferred_time: time.trim() || null,
       room: room || null,
+      table_no: tableNo,
     }
     await supabase.from('appointments').insert(row)
     await notifyApi({ type: 'appointment', ...row })
@@ -636,7 +642,7 @@ function ContactsBlock({ block, venue }) {
 }
 
 /* ─── Такси: форма вызова ─── */
-function TaxiBlock({ block, venue, room, setRoom }) {
+function TaxiBlock({ block, venue, room, setRoom, tableNo }) {
   const t = useT()
   const [open, setOpen] = useState(false)
   const [roomInput, setRoomInput] = useState('')
@@ -663,6 +669,7 @@ function TaxiBlock({ block, venue, room, setRoom }) {
     const row = {
       venue_id: venue.id,
       room: effectiveRoom.slice(0, 20),
+      table_no: tableNo,
       destination: destination.trim().slice(0, 300),
       car_class: carClass,
       when_time: whenMode === 'later' ? time.trim().slice(0, 40) : null,
@@ -760,7 +767,7 @@ function TaxiBlock({ block, venue, room, setRoom }) {
 }
 
 /* ─── Обслуживание номера: плитки с ценами из каталога services ─── */
-function ServicesCatalogBlock({ block, venue, room, setRoom }) {
+function ServicesCatalogBlock({ block, venue, room, setRoom, tableNo }) {
   const t = useT()
   const { lang } = useLang()
   const [open, setOpen] = useState(false)
@@ -827,6 +834,7 @@ function ServicesCatalogBlock({ block, venue, room, setRoom }) {
     const row = {
       venue_id: venue.id,
       room: effectiveRoom.slice(0, 20),
+      table_no: tableNo,
       request_type: selected.legacy ? selected.id : selected.title_ru,
       comment: comment.trim() ? comment.trim().slice(0, 500) : null,
       preferred_time: time.trim() ? time.trim().slice(0, 40) : null,
