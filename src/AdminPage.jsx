@@ -834,8 +834,9 @@ function OwnersCard({ venue }) {
     <div className="card admin-stats">
       <h2 className="admin-subtitle">Владельцы и доступ</h2>
       <p className="admin-hint">
-        Назначьте владельцу (или персоналу) доступ по его Telegram chat_id — он войдёт в кабинет
-        halo по своему номеру. chat_id виден ниже у тех, кто уже подключил бота.
+        Выберите того, кто уже подключил бота к заведению, и выдайте доступ. Владелец войдёт
+        в кабинет halo по своему номеру. Чтобы человек появился в списке — он пишет боту
+        <b> /start</b>, вводит код <b>{venue.pairing_code}</b> и делится номером.
       </p>
 
       {rows === null ? (
@@ -855,40 +856,43 @@ function OwnersCard({ venue }) {
       )}
       {rows && rows.length === 0 && <p className="admin-empty">Доступ пока никому не выдан.</p>}
 
-      <form className="owners-add" onSubmit={add}>
-        <input
-          type="text"
-          placeholder="Telegram chat_id"
-          value={chatId}
-          onChange={(e) => {
-            const v = e.target.value
-            setChatId(v)
-            const sub = subs.find((s) => s.chat_id === v)
-            if (sub?.phone) setPhone(sub.phone)
-          }}
-          list={`subs-${venue.id}`}
-        />
-        <datalist id={`subs-${venue.id}`}>
-          {subs.map((s) => (
-            <option key={s.chat_id} value={s.chat_id}>
-              {s.phone || ''}
-            </option>
-          ))}
-        </datalist>
-        <input
-          type="tel"
-          placeholder="Телефон (для входа)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-        />
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="owner">владелец</option>
-          <option value="staff">персонал (только просмотр)</option>
-        </select>
-        <button type="submit" className="btn-link" disabled={busy || !chatId.trim()}>
-          Добавить
-        </button>
-      </form>
+      {subs.length === 0 ? (
+        <p className="admin-empty">
+          Пока никто не подключил бота к этому заведению. Как подключатся — появятся здесь.
+        </p>
+      ) : (
+        <form className="owners-add" onSubmit={add}>
+          <select
+            value={chatId}
+            onChange={(e) => {
+              const v = e.target.value
+              setChatId(v)
+              const sub = subs.find((s) => s.chat_id === v)
+              setPhone(sub?.phone || '')
+            }}
+          >
+            <option value="">— кто подключил бота —</option>
+            {subs.map((s) => (
+              <option key={s.chat_id} value={s.chat_id}>
+                {s.phone ? s.phone : `без номера · chat ${s.chat_id}`}
+              </option>
+            ))}
+          </select>
+          <input
+            type="tel"
+            placeholder="Телефон (для входа)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          <select value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="owner">владелец</option>
+            <option value="staff">персонал (только просмотр)</option>
+          </select>
+          <button type="submit" className="btn-link" disabled={busy || !chatId}>
+            Добавить
+          </button>
+        </form>
+      )}
       {error && <p className="admin-error">{error}</p>}
     </div>
   )
