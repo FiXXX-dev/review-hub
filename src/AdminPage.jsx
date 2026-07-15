@@ -264,14 +264,19 @@ function VenueEditor({ venue, presets, onBack }) {
   }
 
   // ─── блоки ───
-  // порядок отображения: блоки пресета, затем остальные известные типы
+  // порядок отображения: блоки пресета, затем остальные известные типы.
+  // 'service' (плитки) и 'services' (каталог) — одна фича двух поколений:
+  // в тумблерах показываем только тот вариант, что уже используется
+  // (из пресета/enabled), иначе — современный 'services'.
   const presetTypes = (preset?.blocks ?? []).map((b) => b.type)
-  const allTypes = [...presetTypes, ...Object.keys(BLOCK_DEFS).filter((t) => !presetTypes.includes(t))]
   const enabled = Array.isArray(form.enabled_blocks)
     ? form.enabled_blocks
     : presetTypes.length
       ? presetTypes
       : []
+  const usesLegacyService = presetTypes.includes('service') || enabled.includes('service')
+  const allTypes = [...presetTypes, ...Object.keys(BLOCK_DEFS).filter((t) => !presetTypes.includes(t))]
+    .filter((t) => (t === 'service' ? usesLegacyService : t === 'services' ? !usesLegacyService : true))
 
   function blockDef(type) {
     return { ...BLOCK_DEFS[type], ...(preset?.blocks ?? []).find((b) => b.type === type) }
