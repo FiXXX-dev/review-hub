@@ -1,13 +1,8 @@
-// Telegram-бот halo: webhook для привязки сотрудников к заведению.
+// Telegram-бот halo: webhook для привязки к заведению + сбор номера для кабинета.
 //
-// Деплой: Supabase Dashboard → Edge Functions → New function 'telegram-bot'
+// Деплой: Supabase Dashboard → Edge Functions → telegram-bot
 // (ВЫКЛЮЧИ "Enforce JWT verification" — Telegram шлёт запросы без токена!)
-// Секреты: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET (любая случайная строка).
-//
-// Подключение webhook (один раз):
-// curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
-//   -d "url=https://<project>.supabase.co/functions/v1/telegram-bot" \
-//   -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
+// Секреты: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const supabase = createClient(
@@ -16,22 +11,31 @@ const supabase = createClient(
 )
 const TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
 
-async function send(chatId: string | number, text: string, replyMarkup?: unknown) {
-  if (!TOKEN) return
-  const res = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+async function tg(method: string, body: unknown) {
+  if (!TOKEN) return null
+  const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
-    }),
+    body: JSON.stringify(body),
   })
-  if (!res.ok) console.error('sendMessage failed:', res.status, await res.text())
+  if (!res.ok) console.error(`${method} failed:`, res.status, await res.text())
+  return res
 }
 
-// Кнопка «Поделиться номером» — нужна, чтобы владелец мог войти в кабинет
-// (вход по номеру телефона). one_time — прячется после нажатия.
+async function send(chatId: string | number, text: string, replyMarkup?: unknown) {
+  await tg('sendMessage', {
+    chat_id: chatId,
+    text,
+    ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+  })
+}
+
+// Постоянные кнопки команд (показываем подключённым).
+const MAIN_KB = {
+  keyboard: [[{ text: '📊 Статистика' }, { text: '🔕 Отписаться' }]],
+  resize_keyboard: true,
+}
+// Кнопка «Поделиться номером» — для входа в кабинет (вход по телефону).
 const CONTACT_KB = {
   keyboard: [[{ text: '📱 Поделиться номером', request_contact: true }]],
   resize_keyboard: true,
@@ -39,12 +43,24 @@ const CONTACT_KB = {
 }
 const REMOVE_KB = { remove_keyboard: true }
 
+const HELP =
+  'Введите код заведения (например, ABI-4821) — его выдаёт владелец в админке halo.\n\n' +
+  'Команды:\n/stats — сводка по заведению\n/stop — отписаться от уведомлений'
+
+async function hasSub(chatId: string) {
+  const { count } = await supabase
+    .from('venue_subscribers')
+    .select('*', { count: 'exact', head: true })
+    .eq('chat_id', chatId)
+    .eq('is_active', true)
+  return !!count
+}
+
 // пользователь нажал «Поделиться номером» → сохраняем телефон
 async function saveContact(chatId: string, msg: Record<string, unknown>) {
   const contact = msg.contact as { phone_number?: string; user_id?: number } | undefined
   const from = msg.from as { id?: number } | undefined
   if (!contact?.phone_number) return
-  // принимаем только собственный контакт, не чужой
   if (contact.user_id && from?.id && contact.user_id !== from.id) {
     await send(chatId, 'Отправьте, пожалуйста, свой номер кнопкой ниже, а не чужой контакт.', CONTACT_KB)
     return
@@ -55,32 +71,22 @@ async function saveContact(chatId: string, msg: Record<string, unknown>) {
   await send(
     chatId,
     'Спасибо! Номер сохранён. Теперь вы сможете войти в кабинет halo по этому номеру.',
-    REMOVE_KB,
+    MAIN_KB,
   )
 }
-
-const HELP =
-  'Введите код заведения (например, ABI-4821) — его выдаёт владелец в админке halo.\n\n' +
-  'Команды:\n/stats — сводка по заведению\n/stop — отписаться от уведомлений'
 
 async function pair(chatId: string, rawCode: string) {
   const m = rawCode.toUpperCase().replace(/\s+/g, '').match(/^([A-Z]{2,4})-?(\d{3,5})$/)
   if (!m) return false
   const code = `${m[1]}-${m[2]}`
   const { data: venue } = await supabase
-    .from('venues')
-    .select('id, name')
-    .eq('pairing_code', code)
-    .maybeSingle()
+    .from('venues').select('id, name').eq('pairing_code', code).maybeSingle()
   if (!venue) {
     await send(chatId, `Код ${code} не найден. Проверьте код у владельца заведения.`)
     return true
   }
-  // первый подписчик заведения — владелец, остальные — персонал
   const { count } = await supabase
-    .from('venue_subscribers')
-    .select('*', { count: 'exact', head: true })
-    .eq('venue_id', venue.id)
+    .from('venue_subscribers').select('*', { count: 'exact', head: true }).eq('venue_id', venue.id)
   const { error } = await supabase
     .from('venue_subscribers')
     .upsert(
@@ -94,12 +100,13 @@ async function pair(chatId: string, rawCode: string) {
   }
   await send(
     chatId,
-    `Готово! Вы подключены к ${venue.name}. Сюда будут приходить отзывы и заявки.\n\n/stats — сводка, /stop — отписаться`,
+    `Готово! Вы подключены к ${venue.name}. Сюда будут приходить отзывы и заявки.`,
+    MAIN_KB,
   )
   // просим номер — по нему владелец входит в кабинет halo
   await send(
     chatId,
-    'Чтобы входить в кабинет halo, поделитесь своим номером телефона — нажмите кнопку ниже.',
+    'Чтобы входить в кабинет halo, поделитесь своим номером телефона — нажмите «📱 Поделиться номером» ниже.',
     CONTACT_KB,
   )
   return true
@@ -107,53 +114,67 @@ async function pair(chatId: string, rawCode: string) {
 
 async function stop(chatId: string) {
   const { data } = await supabase
-    .from('venue_subscribers')
-    .update({ is_active: false })
-    .eq('chat_id', chatId)
-    .eq('is_active', true)
-    .select('venue_id')
+    .from('venue_subscribers').update({ is_active: false })
+    .eq('chat_id', chatId).eq('is_active', true).select('venue_id')
   await send(
     chatId,
     data?.length
       ? 'Вы отписаны от уведомлений. Чтобы подключиться снова — введите код заведения.'
       : 'Активных подписок нет. Чтобы подключиться — введите код заведения.',
+    REMOVE_KB,
   )
 }
 
-async function stats(chatId: string) {
+// /stats: одно заведение — сразу сводка; несколько — кнопки выбора
+async function statsMenu(chatId: string) {
   const { data: subs } = await supabase
-    .from('venue_subscribers')
-    .select('venue_id, venue:venues(id, name)')
-    .eq('chat_id', chatId)
-    .eq('is_active', true)
+    .from('venue_subscribers').select('venue_id, venue:venues(id, name)')
+    .eq('chat_id', chatId).eq('is_active', true)
   if (!subs?.length) {
     await send(chatId, 'Вы не подключены ни к одному заведению. Введите код заведения.')
     return
   }
-  const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
-  for (const sub of subs) {
-    const vid = sub.venue_id
-    const [scans, ratings, feedback, services, taxi, appts] = await Promise.all([
-      supabase.from('scans').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
-      supabase.from('ratings').select('stars').eq('venue_id', vid).gte('created_at', weekAgo),
-      supabase.from('feedback').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
-      supabase.from('service_requests').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
-      supabase.from('taxi_requests').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
-      supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
-    ])
-    const stars = (ratings.data ?? []).map((r) => r.stars)
-    const avg = stars.length ? (stars.reduce((a, b) => a + b, 0) / stars.length).toFixed(1) : '—'
-    const requests = (services.count ?? 0) + (taxi.count ?? 0) + (appts.count ?? 0)
-    const name = (sub as { venue?: { name?: string } }).venue?.name ?? 'Заведение'
-    await send(
-      chatId,
-      `📊 ${name} — за 7 дней\n\n` +
-        `Сканов: ${scans.count ?? 0}\n` +
-        `Оценок: ${stars.length} (средняя ${avg}⭐)\n` +
-        `Негатива перехвачено: ${feedback.count ?? 0}\n` +
-        `Заявок: ${requests} (обслуживание ${services.count ?? 0} · такси ${taxi.count ?? 0} · записи ${appts.count ?? 0})`,
-    )
+  if (subs.length === 1) {
+    await statsForVenue(chatId, subs[0].venue_id)
+    return
   }
+  const inline_keyboard = subs.map((s) => [{
+    text: (s as { venue?: { name?: string } }).venue?.name ?? 'Заведение',
+    callback_data: `stats:${s.venue_id}`,
+  }])
+  await send(chatId, 'Выберите заведение для сводки:', { inline_keyboard })
+}
+
+async function statsForVenue(chatId: string, vid: string) {
+  // доступ есть только к своим заведениям
+  const { count: allowed } = await supabase
+    .from('venue_subscribers').select('*', { count: 'exact', head: true })
+    .eq('chat_id', chatId).eq('venue_id', vid).eq('is_active', true)
+  if (!allowed) {
+    await send(chatId, 'Нет доступа к этому заведению.')
+    return
+  }
+  const { data: venue } = await supabase.from('venues').select('name').eq('id', vid).maybeSingle()
+  const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
+  const [scans, ratings, feedback, services, taxi, appts] = await Promise.all([
+    supabase.from('scans').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
+    supabase.from('ratings').select('stars').eq('venue_id', vid).gte('created_at', weekAgo),
+    supabase.from('feedback').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
+    supabase.from('service_requests').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
+    supabase.from('taxi_requests').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
+    supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('venue_id', vid).gte('created_at', weekAgo),
+  ])
+  const stars = (ratings.data ?? []).map((r) => r.stars)
+  const avg = stars.length ? (stars.reduce((a, b) => a + b, 0) / stars.length).toFixed(1) : '—'
+  const requests = (services.count ?? 0) + (taxi.count ?? 0) + (appts.count ?? 0)
+  await send(
+    chatId,
+    `📊 ${venue?.name ?? 'Заведение'} — за 7 дней\n\n` +
+      `Сканов: ${scans.count ?? 0}\n` +
+      `Оценок: ${stars.length} (средняя ${avg}⭐)\n` +
+      `Негатива перехвачено: ${feedback.count ?? 0}\n` +
+      `Заявок: ${requests} (обслуживание ${services.count ?? 0} · такси ${taxi.count ?? 0} · записи ${appts.count ?? 0})`,
+  )
 }
 
 Deno.serve(async (req) => {
@@ -165,11 +186,24 @@ Deno.serve(async (req) => {
 
   try {
     const update = await req.json()
+
+    // нажатие inline-кнопки (выбор заведения в /stats)
+    const cb = update?.callback_query
+    if (cb) {
+      const cbChat = cb.message?.chat?.id != null ? String(cb.message.chat.id) : null
+      const data = String(cb.data || '')
+      await tg('answerCallbackQuery', { callback_query_id: cb.id })
+      if (cbChat && data.startsWith('stats:')) {
+        await statsForVenue(cbChat, data.slice(6))
+      }
+      return Response.json({ ok: true })
+    }
+
     const msg = update?.message
     const chatId = msg?.chat?.id != null ? String(msg.chat.id) : null
     if (!chatId) return Response.json({ ok: true })
 
-    // пользователь поделился контактом (кнопка request_contact)
+    // пользователь поделился контактом
     if (msg?.contact) {
       await saveContact(chatId, msg)
       return Response.json({ ok: true })
@@ -179,27 +213,18 @@ Deno.serve(async (req) => {
     if (!text) return Response.json({ ok: true })
 
     if (text.startsWith('/start')) {
-      // уже подключён? предложим сразу поделиться номером для входа в кабинет
-      const { count } = await supabase
-        .from('venue_subscribers')
-        .select('*', { count: 'exact', head: true })
-        .eq('chat_id', chatId)
-        .eq('is_active', true)
-      await send(
-        chatId,
-        `Привет! Это бот halo — уведомления об отзывах и заявках вашего заведения.\n\n${HELP}`,
-        count ? CONTACT_KB : undefined,
-      )
-    } else if (text.startsWith('/stop')) {
+      // на старте номер НЕ просим — только показываем кнопки, если уже подключён
+      const kb = (await hasSub(chatId)) ? MAIN_KB : REMOVE_KB
+      await send(chatId, `Привет! Это бот halo — уведомления об отзывах и заявках вашего заведения.\n\n${HELP}`, kb)
+    } else if (text.startsWith('/stop') || text === '🔕 Отписаться') {
       await stop(chatId)
-    } else if (text.startsWith('/stats')) {
-      await stats(chatId)
+    } else if (text.startsWith('/stats') || text === '📊 Статистика') {
+      await statsMenu(chatId)
     } else if (!(await pair(chatId, text))) {
       await send(chatId, `Не понял 🤔\n\n${HELP}`)
     }
   } catch (err) {
     console.error('telegram-bot error:', err)
   }
-  // Telegram всегда получает 200, иначе он ретраит update бесконечно
   return Response.json({ ok: true })
 })
