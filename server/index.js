@@ -29,15 +29,23 @@ const SERVICE_LABELS = {
   taxi: 'Вызвать такси',
 }
 
-// одиночная отправка (коды входа в кабинет)
+// одиночная отправка (коды входа в кабинет). Возвращает true при успехе.
 async function sendToChat(chatId, text) {
-  if (!BOT_TOKEN || !chatId) return
+  if (!BOT_TOKEN) {
+    console.error('sendToChat: TELEGRAM_BOT_TOKEN не задан')
+    return false
+  }
+  if (!chatId) return false
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chat_id: chatId, text }),
   })
-  if (!res.ok) console.error('sendToChat failed:', res.status, await res.text())
+  if (!res.ok) {
+    console.error('sendToChat failed:', res.status, await res.text())
+    return false
+  }
+  return true
 }
 
 const app = express()

@@ -60,25 +60,35 @@ export function createCabinetRouter({ supabase, sendTelegram }) {
       if (!supabase) return res.status(503).json({ error: 'not configured' })
 
       // ищем владельца с таким телефоном в user_roles
-      const { data: roles } = await supabase
+      const { data: roles, error: rolesErr } = await supabase
         .from('user_roles')
         .select('telegram_chat_id, phone')
-      const match = (roles ?? []).find((r) => r.phone && phoneKey(r.phone) === key)
-      // всегда отвечаем ok (не раскрываем, есть ли номер); код шлём только если нашли
-      if (match) {
-        const code = String(Math.floor(1000 + Math.random() * 9000))
-        await supabase.from('cabinet_codes').insert({
-          phone: key,
-          chat_id: match.telegram_chat_id,
-          code,
-          expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
-        })
-        await sendTelegram(
-          match.telegram_chat_id,
-          `Код входа в кабинет halo: ${code}\n\nНикому не сообщайте его. Код действует 5 минут.`,
-        )
+      if (rolesErr) {
+        console.error('request-code: user_roles error (миграция 0012?):', rolesErr.message)
+        return res.status(500).json({ error: 'db' })
       }
-      res.json({ ok: true })
+      const match = (roles ?? []).find((r) => r.phone && phoneKey(r.phone) === key)
+      // это B2B-вход (доступ выдаёт halo), поэтому честно сообщаем, если номера нет
+      if (!match) {
+        console.log('request-code: номер не найден в user_roles:', key)
+        return res.json({ ok: true, found: false })
+      }
+      const code = String(Math.floor(1000 + Math.random() * 9000))
+      const { error: insErr } = await supabase.from('cabinet_codes').insert({
+        phone: key,
+        chat_id: match.telegram_chat_id,
+        code,
+        expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
+      })
+      if (insErr) {
+        console.error('request-code: cabinet_codes insert error:', insErr.message)
+        return res.status(500).json({ error: 'db' })
+      }
+      const sent = await sendTelegram(
+        match.telegram_chat_id,
+        `Код входа в кабинет halo: ${code}\n\nНикому не сообщайте его. Код действует 5 минут.`,
+      )
+      res.json({ ok: true, found: true, sent })
     } catch (err) {
       console.error('request-code error:', err)
       res.status(500).json({ error: 'internal' })

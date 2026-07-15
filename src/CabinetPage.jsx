@@ -70,8 +70,14 @@ function CabinetLogin({ onAuth }) {
     setBusy(true)
     setError('')
     try {
-      await api('/request-code', { method: 'POST', body: { phone } })
-      setStep('code')
+      const r = await api('/request-code', { method: 'POST', body: { phone } })
+      if (r.found === false) {
+        setError('Этот номер не подключён к halo. Обратитесь к нам, чтобы выдать доступ.')
+      } else if (r.sent === false) {
+        setError('Код не доставлен в Telegram. Напишите боту halo /start со своего аккаунта и повторите.')
+      } else {
+        setStep('code')
+      }
     } catch {
       setError('Не удалось отправить код. Попробуйте позже.')
     }
