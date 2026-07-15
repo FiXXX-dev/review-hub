@@ -860,7 +860,12 @@ function OwnersCard({ venue }) {
           type="text"
           placeholder="Telegram chat_id"
           value={chatId}
-          onChange={(e) => setChatId(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value
+            setChatId(v)
+            const sub = subs.find((s) => s.chat_id === v)
+            if (sub?.phone) setPhone(sub.phone)
+          }}
           list={`subs-${venue.id}`}
         />
         <datalist id={`subs-${venue.id}`}>
