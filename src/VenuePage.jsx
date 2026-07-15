@@ -318,6 +318,18 @@ function renderBlock(block, venue, room, setRoom, tableNo) {
           <BlockIcon type={block.type} /> {block.label}
         </a>
       ) : null
+    case 'menu':
+      // всегда ведём на внутреннюю страницу меню; она сама уводит на
+      // menu_url (fallback), если структурированных позиций ещё нет
+      return (
+        <a
+          key={type}
+          className="btn btn-secondary"
+          href={`${import.meta.env.BASE_URL}v/${venue.slug}/menu`}
+        >
+          <BlockIcon type={block.type} /> {block.label}
+        </a>
+      )
     default: {
       // универсальный link-блок: иконка + подпись + url
       const url = blockUrl(venue, type)

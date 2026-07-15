@@ -31,7 +31,8 @@ export function formatPrice(p, lang = 'ru') {
   const n = Number(p)
   if (!Number.isFinite(n)) return ''
   const num = String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-  return lang === 'en' ? `${num} UZS` : `${num} сум`
+  const unit = lang === 'en' ? 'UZS' : lang === 'uz' ? "so'm" : 'сум'
+  return `${num} ${unit}`
 }
 
 // Запросы обслуживания номера (блок service). Ключ хранится в
