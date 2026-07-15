@@ -16,14 +16,47 @@ const supabase = createClient(
 )
 const TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
 
-async function send(chatId: string | number, text: string) {
+async function send(chatId: string | number, text: string, replyMarkup?: unknown) {
   if (!TOKEN) return
   const res = await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    }),
   })
   if (!res.ok) console.error('sendMessage failed:', res.status, await res.text())
+}
+
+// Кнопка «Поделиться номером» — нужна, чтобы владелец мог войти в кабинет
+// (вход по номеру телефона). one_time — прячется после нажатия.
+const CONTACT_KB = {
+  keyboard: [[{ text: '📱 Поделиться номером', request_contact: true }]],
+  resize_keyboard: true,
+  one_time_keyboard: true,
+}
+const REMOVE_KB = { remove_keyboard: true }
+
+// пользователь нажал «Поделиться номером» → сохраняем телефон
+async function saveContact(chatId: string, msg: Record<string, unknown>) {
+  const contact = msg.contact as { phone_number?: string; user_id?: number } | undefined
+  const from = msg.from as { id?: number } | undefined
+  if (!contact?.phone_number) return
+  // принимаем только собственный контакт, не чужой
+  if (contact.user_id && from?.id && contact.user_id !== from.id) {
+    await send(chatId, 'Отправьте, пожалуйста, свой номер кнопкой ниже, а не чужой контакт.', CONTACT_KB)
+    return
+  }
+  const phone = contact.phone_number
+  await supabase.from('venue_subscribers').update({ phone }).eq('chat_id', chatId)
+  await supabase.from('user_roles').update({ phone }).eq('telegram_chat_id', chatId)
+  await send(
+    chatId,
+    'Спасибо! Номер сохранён. Теперь вы сможете войти в кабинет halo по этому номеру.',
+    REMOVE_KB,
+  )
 }
 
 const HELP =
@@ -62,6 +95,12 @@ async function pair(chatId: string, rawCode: string) {
   await send(
     chatId,
     `Готово! Вы подключены к ${venue.name}. Сюда будут приходить отзывы и заявки.\n\n/stats — сводка, /stop — отписаться`,
+  )
+  // просим номер — по нему владелец входит в кабинет halo
+  await send(
+    chatId,
+    'Чтобы входить в кабинет halo, поделитесь своим номером телефона — нажмите кнопку ниже.',
+    CONTACT_KB,
   )
   return true
 }
@@ -128,11 +167,29 @@ Deno.serve(async (req) => {
     const update = await req.json()
     const msg = update?.message
     const chatId = msg?.chat?.id != null ? String(msg.chat.id) : null
+    if (!chatId) return Response.json({ ok: true })
+
+    // пользователь поделился контактом (кнопка request_contact)
+    if (msg?.contact) {
+      await saveContact(chatId, msg)
+      return Response.json({ ok: true })
+    }
+
     const text = typeof msg?.text === 'string' ? msg.text.trim() : ''
-    if (!chatId || !text) return Response.json({ ok: true })
+    if (!text) return Response.json({ ok: true })
 
     if (text.startsWith('/start')) {
-      await send(chatId, `Привет! Это бот halo — уведомления об отзывах и заявках вашего заведения.\n\n${HELP}`)
+      // уже подключён? предложим сразу поделиться номером для входа в кабинет
+      const { count } = await supabase
+        .from('venue_subscribers')
+        .select('*', { count: 'exact', head: true })
+        .eq('chat_id', chatId)
+        .eq('is_active', true)
+      await send(
+        chatId,
+        `Привет! Это бот halo — уведомления об отзывах и заявках вашего заведения.\n\n${HELP}`,
+        count ? CONTACT_KB : undefined,
+      )
     } else if (text.startsWith('/stop')) {
       await stop(chatId)
     } else if (text.startsWith('/stats')) {
