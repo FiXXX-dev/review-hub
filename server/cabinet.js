@@ -195,7 +195,8 @@ export function createCabinetRouter({ supabase, sendTelegram }) {
     const buf = Buffer.from(m[2], 'base64')
     if (buf.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'too large' })
     const ext = (m[1].split('/')[1] || 'png').replace('+xml', '')
-    const path = `${kind === 'bg' ? 'bg' : 'logo'}-${req.params.id}-${Date.now()}.${ext}`
+    const prefix = kind === 'bg' ? 'bg' : kind === 'menu' ? 'menu' : 'logo'
+    const path = `${prefix}-${req.params.id}-${Date.now()}.${ext}`
     const { error } = await supabase.storage
       .from('logos')
       .upload(path, buf, { contentType: m[1], upsert: true })
@@ -231,6 +232,112 @@ export function createCabinetRouter({ supabase, sendTelegram }) {
   router.delete('/venue/:id/tables/:tableId', auth, async (req, res) => {
     if ((await loadRole(req.chatId, req.params.id)) !== 'owner') return res.status(403).json({ error: 'forbidden' })
     await supabase.from('venue_tables').delete().eq('id', req.params.tableId).eq('venue_id', req.params.id)
+    res.json({ ok: true })
+  })
+
+  // ── меню: секции → категории → позиции ──
+  const MENU_TABLES = {
+    section: 'menu_sections',
+    category: 'menu_categories',
+    item: 'menu_items',
+  }
+  // белые списки полей на запись (venue_id проставляется из URL)
+  const MENU_FIELDS = {
+    section: ['title_ru', 'title_uz', 'title_en', 'sort_order', 'is_active'],
+    category: ['section_id', 'title_ru', 'title_uz', 'title_en', 'sort_order', 'is_active'],
+    item: [
+      'category_id', 'title_ru', 'title_uz', 'title_en',
+      'description_ru', 'description_uz', 'description_en',
+      'price', 'weight_value', 'weight_unit', 'kbju', 'photo_url',
+      'is_new', 'is_active', 'sort_order',
+    ],
+  }
+
+  function menuPatch(kind, body) {
+    const allow = MENU_FIELDS[kind]
+    const patch = {}
+    for (const [k, v] of Object.entries(body || {})) {
+      if (allow.includes(k)) patch[k] = v === '' ? null : v
+    }
+    return patch
+  }
+
+  // всё меню целиком (включая скрытое) — для кабинета
+  router.get('/venue/:id/menu', auth, async (req, res) => {
+    if (!(await loadRole(req.chatId, req.params.id))) return res.status(403).json({ error: 'forbidden' })
+    const vid = req.params.id
+    const [sec, cat, items] = await Promise.all([
+      supabase.from('menu_sections').select('*').eq('venue_id', vid).order('sort_order'),
+      supabase.from('menu_categories').select('*').eq('venue_id', vid).order('sort_order'),
+      supabase.from('menu_items').select('*').eq('venue_id', vid).order('sort_order'),
+    ])
+    res.json({
+      sections: sec.data ?? [],
+      categories: cat.data ?? [],
+      items: items.data ?? [],
+    })
+  })
+
+  // создать секцию/категорию/позицию
+  router.post('/venue/:id/menu/:kind', auth, async (req, res) => {
+    if ((await loadRole(req.chatId, req.params.id)) !== 'owner') return res.status(403).json({ error: 'forbidden' })
+    const table = MENU_TABLES[req.params.kind]
+    if (!table) return res.status(400).json({ error: 'bad kind' })
+    const patch = menuPatch(req.params.kind, req.body)
+    if (!patch.title_ru) return res.status(400).json({ error: 'Заполните название (RU)' })
+    // sort_order по умолчанию — в конец списка
+    if (patch.sort_order == null) {
+      const { data: last } = await supabase
+        .from(table)
+        .select('sort_order')
+        .eq('venue_id', req.params.id)
+        .order('sort_order', { ascending: false })
+        .limit(1)
+      patch.sort_order = (last?.[0]?.sort_order ?? -1) + 1
+    }
+    const { data, error } = await supabase
+      .from(table)
+      .insert({ ...patch, venue_id: req.params.id })
+      .select()
+      .maybeSingle()
+    if (error) return res.status(400).json({ error: error.message })
+    res.json({ row: data })
+  })
+
+  // обновить
+  router.patch('/venue/:id/menu/:kind/:rowId', auth, async (req, res) => {
+    if ((await loadRole(req.chatId, req.params.id)) !== 'owner') return res.status(403).json({ error: 'forbidden' })
+    const table = MENU_TABLES[req.params.kind]
+    if (!table) return res.status(400).json({ error: 'bad kind' })
+    const patch = menuPatch(req.params.kind, req.body)
+    if (!Object.keys(patch).length) return res.json({ ok: true })
+    const { error } = await supabase
+      .from(table)
+      .update(patch)
+      .eq('id', req.params.rowId)
+      .eq('venue_id', req.params.id)
+    if (error) return res.status(400).json({ error: error.message })
+    res.json({ ok: true })
+  })
+
+  // порядок: body { ids: [...] } → sort_order = индекс
+  router.post('/venue/:id/menu/:kind/reorder', auth, async (req, res) => {
+    if ((await loadRole(req.chatId, req.params.id)) !== 'owner') return res.status(403).json({ error: 'forbidden' })
+    const table = MENU_TABLES[req.params.kind]
+    if (!table) return res.status(400).json({ error: 'bad kind' })
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : []
+    for (let i = 0; i < ids.length; i++) {
+      await supabase.from(table).update({ sort_order: i }).eq('id', ids[i]).eq('venue_id', req.params.id)
+    }
+    res.json({ ok: true })
+  })
+
+  // удалить навсегда (в кабинете по умолчанию — скрытие через is_active)
+  router.delete('/venue/:id/menu/:kind/:rowId', auth, async (req, res) => {
+    if ((await loadRole(req.chatId, req.params.id)) !== 'owner') return res.status(403).json({ error: 'forbidden' })
+    const table = MENU_TABLES[req.params.kind]
+    if (!table) return res.status(400).json({ error: 'bad kind' })
+    await supabase.from(table).delete().eq('id', req.params.rowId).eq('venue_id', req.params.id)
     res.json({ ok: true })
   })
 

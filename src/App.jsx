@@ -5,6 +5,7 @@ import RoomLinksPage from './RoomLinksPage.jsx'
 import ServicesAdminPage from './ServicesAdminPage.jsx'
 import LandingPage from './LandingPage.jsx'
 import CabinetPage from './CabinetPage.jsx'
+import MenuPage from './MenuPage.jsx'
 import { LangProvider } from './lib/i18n.jsx'
 
 function getSlug() {
@@ -27,6 +28,16 @@ export default function App() {
   }
   if (/\/cabinet\/?$/.test(window.location.pathname)) {
     return <CabinetPage />
+  }
+
+  // /v/:slug/menu — публичная страница меню
+  const menuMatch = window.location.pathname.match(/\/v\/([\w-]+)\/menu\/?$/)
+  if (menuMatch) {
+    return (
+      <LangProvider>
+        <MenuPage slug={menuMatch[1]} />
+      </LangProvider>
+    )
   }
 
   const slug = getSlug()

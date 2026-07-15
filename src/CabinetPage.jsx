@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import QRCode from 'qrcode'
 import { HaloIcon } from './lib/logo.jsx'
-import { BLOCK_DEFS } from './lib/blocks.js'
+import { BLOCK_DEFS, formatPrice } from './lib/blocks.js'
+import { pick } from './lib/menu.js'
 
 const TOKEN_KEY = 'halo-cabinet-token'
 
@@ -221,6 +222,7 @@ function CabinetShell({ token, onLogout }) {
           {[
             ['profile', 'Профиль'],
             ['blocks', 'Блоки'],
+            ['menu', 'Меню'],
             ['tables', 'Столы'],
           ].map(([k, label]) => (
             <button
@@ -235,6 +237,7 @@ function CabinetShell({ token, onLogout }) {
 
         {tab === 'profile' && <ProfileSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
         {tab === 'blocks' && <BlocksSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
+        {tab === 'menu' && <MenuSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
         {tab === 'tables' && <TablesSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
       </div>
     </div>
@@ -651,6 +654,515 @@ function TableQR({ base, table, canRemove, onRemove }) {
           Удалить
         </button>
       )}
+    </div>
+  )
+}
+
+/* ─── Меню: секции → категории → позиции ─── */
+const WEIGHT_UNITS = ['г', 'мл', 'шт']
+const DELETE_CONFIRM = 'Удалить навсегда? Лучше скрыть, если планируете вернуть.'
+
+// клиентское сжатие фото до 800px по длинной стороне перед загрузкой
+function resizeImage(file, max = 800) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width >= height && width > max) {
+          height = Math.round((height * max) / width)
+          width = max
+        } else if (height > width && height > max) {
+          width = Math.round((width * max) / height)
+          height = max
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', 0.85))
+      }
+      img.onerror = reject
+      img.src = reader.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+function MenuSection({ token, venue, isOwner }) {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState(null) // { kind, mode, parentId, row }
+  const [openSec, setOpenSec] = useState({})
+  const [openCat, setOpenCat] = useState({})
+
+  const load = useCallback(() => {
+    api(`/venue/${venue.id}/menu`, { token })
+      .then(setData)
+      .catch((e) => setError(e.message))
+  }, [token, venue.id])
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const create = (kind, patch) => api(`/venue/${venue.id}/menu/${kind}`, { method: 'POST', token, body: patch })
+  const patchRow = (kind, id, patch) => api(`/venue/${venue.id}/menu/${kind}/${id}`, { method: 'PATCH', token, body: patch })
+  const delRow = (kind, id) => api(`/venue/${venue.id}/menu/${kind}/${id}`, { method: 'DELETE', token })
+  const reorder = (kind, ids) => api(`/venue/${venue.id}/menu/${kind}/reorder`, { method: 'POST', token, body: { ids } })
+
+  async function run(fn) {
+    setError('')
+    try {
+      await fn()
+      load()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  async function move(kind, list, id, dir) {
+    const i = list.findIndex((x) => x.id === id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= list.length) return
+    const ids = list.map((x) => x.id)
+    ;[ids[i], ids[j]] = [ids[j], ids[i]]
+    await run(() => reorder(kind, ids))
+  }
+
+  async function uploadPhoto(dataUrl) {
+    const { url } = await api(`/venue/${venue.id}/upload`, {
+      method: 'POST',
+      token,
+      body: { data_url: dataUrl, kind: 'menu' },
+    })
+    return url
+  }
+
+  async function saveItem(patch) {
+    if (form.mode === 'edit') await patchRow('item', form.row.id, patch)
+    else await create('item', { ...patch, category_id: form.parentId })
+    setForm(null)
+    load()
+  }
+
+  if (error && !data) return <p className="admin-error" style={{ marginTop: 16 }}>{error}</p>
+  if (!data) return <div className="spinner" style={{ margin: '24px auto' }} />
+
+  const { sections, categories, items } = data
+  const guestUrl = `${import.meta.env.BASE_URL}v/${venue.slug}/menu`
+
+  return (
+    <div className="card admin-form menu-mgr">
+      <div className="menu-mgr-top">
+        <a className="btn-link" href={guestUrl} target="_blank" rel="noreferrer">
+          Посмотреть как гость ↗
+        </a>
+      </div>
+      {error && <p className="admin-error">{error}</p>}
+
+      {sections.length === 0 && (
+        <p className="admin-empty">Пока нет ни одной секции. Добавьте первую.</p>
+      )}
+
+      {sections.map((s) => {
+        const cats = categories.filter((c) => c.section_id === s.id)
+        const open = openSec[s.id] !== false // по умолчанию раскрыто
+        return (
+          <div key={s.id} className={`menu-node menu-sec ${s.is_active ? '' : 'off'}`}>
+            <div className="menu-node-head">
+              <button className="menu-node-toggle" onClick={() => setOpenSec((o) => ({ ...o, [s.id]: !open }))}>
+                {open ? '▾' : '▸'}
+              </button>
+              <span className="menu-node-title">
+                {pick(s, 'title', 'ru')}
+                {!s.is_active && <span className="menu-off-badge">скрыто</span>}
+              </span>
+              {isOwner && (
+                <span className="menu-node-actions">
+                  <button className="btn-link" onClick={() => move('section', sections, s.id, -1)}>↑</button>
+                  <button className="btn-link" onClick={() => move('section', sections, s.id, 1)}>↓</button>
+                  <button className="btn-link" onClick={() => setForm({ kind: 'section', mode: 'edit', row: s })}>изм.</button>
+                  <button className="btn-link" onClick={() => run(() => patchRow('section', s.id, { is_active: !s.is_active }))}>
+                    {s.is_active ? 'скрыть' : 'показать'}
+                  </button>
+                  <button
+                    className="btn-link danger"
+                    onClick={() => window.confirm(DELETE_CONFIRM) && run(() => delRow('section', s.id))}
+                  >
+                    удалить
+                  </button>
+                </span>
+              )}
+            </div>
+
+            {open && (
+              <div className="menu-node-body">
+                {cats.map((c) => {
+                  const its = items.filter((i) => i.category_id === c.id)
+                  const copen = openCat[c.id] !== false
+                  return (
+                    <div key={c.id} className={`menu-node menu-cat ${c.is_active ? '' : 'off'}`}>
+                      <div className="menu-node-head">
+                        <button className="menu-node-toggle" onClick={() => setOpenCat((o) => ({ ...o, [c.id]: !copen }))}>
+                          {copen ? '▾' : '▸'}
+                        </button>
+                        <span className="menu-node-title">
+                          {pick(c, 'title', 'ru')} <span className="menu-count">({its.length})</span>
+                          {!c.is_active && <span className="menu-off-badge">скрыто</span>}
+                        </span>
+                        {isOwner && (
+                          <span className="menu-node-actions">
+                            <button className="btn-link" onClick={() => move('category', cats, c.id, -1)}>↑</button>
+                            <button className="btn-link" onClick={() => move('category', cats, c.id, 1)}>↓</button>
+                            <button className="btn-link" onClick={() => setForm({ kind: 'category', mode: 'edit', row: c })}>изм.</button>
+                            <button className="btn-link" onClick={() => run(() => patchRow('category', c.id, { is_active: !c.is_active }))}>
+                              {c.is_active ? 'скрыть' : 'показать'}
+                            </button>
+                            {its.some((i) => i.is_active) && (
+                              <button
+                                className="btn-link"
+                                onClick={() =>
+                                  run(async () => {
+                                    for (const i of its.filter((x) => x.is_active)) await patchRow('item', i.id, { is_active: false })
+                                  })
+                                }
+                              >
+                                скрыть все
+                              </button>
+                            )}
+                            <button
+                              className="btn-link danger"
+                              onClick={() => window.confirm(DELETE_CONFIRM) && run(() => delRow('category', c.id))}
+                            >
+                              удалить
+                            </button>
+                          </span>
+                        )}
+                      </div>
+
+                      {copen && (
+                        <div className="menu-node-body">
+                          {its.map((it) => (
+                            <MenuItemRow
+                              key={it.id}
+                              item={it}
+                              list={its}
+                              isOwner={isOwner}
+                              onPrice={(price) => run(() => patchRow('item', it.id, { price }))}
+                              onEdit={() => setForm({ kind: 'item', mode: 'edit', parentId: c.id, row: it })}
+                              onToggle={() => run(() => patchRow('item', it.id, { is_active: !it.is_active }))}
+                              onMove={(dir) => move('item', its, it.id, dir)}
+                              onDelete={() => window.confirm(DELETE_CONFIRM) && run(() => delRow('item', it.id))}
+                            />
+                          ))}
+                          {isOwner && (
+                            <button className="btn-link menu-add" onClick={() => setForm({ kind: 'item', mode: 'create', parentId: c.id })}>
+                              + Позиция
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                {isOwner && (
+                  <button className="btn-link menu-add" onClick={() => setForm({ kind: 'category', mode: 'create', parentId: s.id })}>
+                    + Категория
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {isOwner && (
+        <button className="btn btn-secondary" style={{ marginTop: 14 }} onClick={() => setForm({ kind: 'section', mode: 'create' })}>
+          + Секция
+        </button>
+      )}
+
+      {form && (form.kind === 'section' || form.kind === 'category') && (
+        <TitleForm
+          title={form.kind === 'section' ? 'Секция' : 'Категория'}
+          row={form.row}
+          onCancel={() => setForm(null)}
+          onSave={(patch) =>
+            run(async () => {
+              if (form.mode === 'edit') await patchRow(form.kind, form.row.id, patch)
+              else await create(form.kind, form.kind === 'category' ? { ...patch, section_id: form.parentId } : patch)
+              setForm(null)
+            })
+          }
+        />
+      )}
+
+      {form && form.kind === 'item' && (
+        <ItemForm
+          row={form.row}
+          onCancel={() => setForm(null)}
+          onSave={saveItem}
+          onUpload={uploadPhoto}
+          setError={setError}
+        />
+      )}
+    </div>
+  )
+}
+
+function MenuItemRow({ item, isOwner, onPrice, onEdit, onToggle, onMove, onDelete }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(item.price ?? '')
+
+  function commit() {
+    setEditing(false)
+    const n = val === '' ? null : Number(val)
+    if (n !== (item.price ?? null)) onPrice(n)
+  }
+
+  return (
+    <div className={`menu-item-row ${item.is_active ? '' : 'off'}`}>
+      <div className="menu-item-thumb">
+        {item.photo_url ? <img src={item.photo_url} alt="" /> : <span>—</span>}
+      </div>
+      <div className="menu-item-main">
+        <div className="menu-item-name">
+          {pick(item, 'title', 'ru')}
+          {item.is_new && <span className="menu-tag-new">NEW</span>}
+          {!item.is_active && <span className="menu-off-badge">скрыто</span>}
+        </div>
+        <div className="menu-item-sub">
+          {editing && isOwner ? (
+            <input
+              className="menu-price-input"
+              type="number"
+              autoFocus
+              value={val}
+              onChange={(e) => setVal(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commit()
+                if (e.key === 'Escape') {
+                  setVal(item.price ?? '')
+                  setEditing(false)
+                }
+              }}
+            />
+          ) : (
+            <button className="menu-price-btn" disabled={!isOwner} onClick={() => setEditing(true)}>
+              {item.price != null ? formatPrice(item.price, 'ru') : 'цена —'}
+            </button>
+          )}
+          {item.weight_value ? <span className="menu-weight-badge">{item.weight_value} {item.weight_unit || ''}</span> : null}
+        </div>
+      </div>
+      {isOwner && (
+        <span className="menu-item-actions">
+          <button className="btn-link" onClick={() => onMove(-1)}>↑</button>
+          <button className="btn-link" onClick={() => onMove(1)}>↓</button>
+          <button className="btn-link" onClick={onEdit}>изм.</button>
+          <button className="btn-link" onClick={onToggle}>{item.is_active ? 'скрыть' : 'показать'}</button>
+          <button className="btn-link danger" onClick={onDelete}>удалить</button>
+        </span>
+      )}
+    </div>
+  )
+}
+
+/* мини-форма для секции/категории: RU/UZ/EN названия */
+function TitleForm({ title, row, onCancel, onSave }) {
+  const [v, setV] = useState({
+    title_ru: row?.title_ru || '',
+    title_uz: row?.title_uz || '',
+    title_en: row?.title_en || '',
+  })
+  return (
+    <div className="menu-modal-back" onClick={onCancel}>
+      <div className="menu-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>{row ? `${title}: изменить` : `Новая ${title.toLowerCase()}`}</h3>
+        {['ru', 'uz', 'en'].map((l) => (
+          <label key={l} className="admin-field">
+            <span>Название ({l.toUpperCase()}){l === 'ru' ? ' *' : ''}</span>
+            <input
+              type="text"
+              value={v[`title_${l}`]}
+              onChange={(e) => setV((s) => ({ ...s, [`title_${l}`]: e.target.value }))}
+            />
+          </label>
+        ))}
+        <div className="menu-modal-foot">
+          <button className="btn-link" onClick={onCancel}>Отмена</button>
+          <button className="btn btn-primary" disabled={!v.title_ru.trim()} onClick={() => onSave(v)}>
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* полная форма позиции */
+function ItemForm({ row, onCancel, onSave, onUpload, setError }) {
+  const [lang, setLang] = useState('ru')
+  const [busy, setBusy] = useState(false)
+  const [showKbju, setShowKbju] = useState(() => {
+    const k = row?.kbju
+    return !!(k && (k.calories || k.protein || k.fat || k.carbs))
+  })
+  const fileRef = useRef(null)
+  const [f, setF] = useState(() => ({
+    title_ru: row?.title_ru || '',
+    title_uz: row?.title_uz || '',
+    title_en: row?.title_en || '',
+    description_ru: row?.description_ru || '',
+    description_uz: row?.description_uz || '',
+    description_en: row?.description_en || '',
+    price: row?.price ?? '',
+    weight_value: row?.weight_value ?? '',
+    weight_unit: row?.weight_unit || 'г',
+    photo_url: row?.photo_url || '',
+    is_new: row?.is_new ?? false,
+    is_active: row?.is_active ?? true,
+    kbju: {
+      calories: row?.kbju?.calories ?? '',
+      protein: row?.kbju?.protein ?? '',
+      fat: row?.kbju?.fat ?? '',
+      carbs: row?.kbju?.carbs ?? '',
+    },
+  }))
+  const set = (k, val) => setF((s) => ({ ...s, [k]: val }))
+  const setK = (k, val) => setF((s) => ({ ...s, kbju: { ...s.kbju, [k]: val } }))
+
+  async function pickFile(file) {
+    if (!file) return
+    setBusy(true)
+    try {
+      const dataUrl = await resizeImage(file)
+      const url = await onUpload(dataUrl)
+      set('photo_url', url)
+    } catch (e) {
+      setError?.(e.message || 'Не удалось загрузить фото')
+    }
+    setBusy(false)
+  }
+
+  function submit() {
+    const kbjuVals = ['calories', 'protein', 'fat', 'carbs'].reduce((acc, k) => {
+      const n = f.kbju[k] === '' ? null : Number(f.kbju[k])
+      if (n != null && Number.isFinite(n)) acc[k] = n
+      return acc
+    }, {})
+    onSave({
+      title_ru: f.title_ru.trim(),
+      title_uz: f.title_uz.trim() || null,
+      title_en: f.title_en.trim() || null,
+      description_ru: f.description_ru.trim() || null,
+      description_uz: f.description_uz.trim() || null,
+      description_en: f.description_en.trim() || null,
+      price: f.price === '' ? null : Number(f.price),
+      weight_value: f.weight_value === '' ? null : Number(f.weight_value),
+      weight_unit: f.weight_unit,
+      photo_url: f.photo_url || null,
+      is_new: f.is_new,
+      is_active: f.is_active,
+      kbju: Object.keys(kbjuVals).length ? kbjuVals : null,
+    })
+  }
+
+  return (
+    <div className="menu-modal-back" onClick={onCancel}>
+      <div className="menu-modal menu-modal-lg" onClick={(e) => e.stopPropagation()}>
+        <h3>{row ? 'Изменить позицию' : 'Новая позиция'}</h3>
+
+        <div
+          className="menu-photo-drop"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault()
+            pickFile(e.dataTransfer.files?.[0])
+          }}
+          onClick={() => fileRef.current?.click()}
+        >
+          {f.photo_url ? (
+            <img src={f.photo_url} alt="" />
+          ) : (
+            <span>{busy ? 'Загрузка…' : 'Перетащите фото или нажмите'}</span>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => pickFile(e.target.files?.[0])} />
+        </div>
+        {f.photo_url && (
+          <div className="menu-photo-tools">
+            <button className="btn-link" onClick={() => fileRef.current?.click()}>Заменить</button>
+            <button className="btn-link danger" onClick={() => set('photo_url', '')}>Удалить фото</button>
+          </div>
+        )}
+
+        <div className="menu-lang-tabs">
+          {['ru', 'uz', 'en'].map((l) => (
+            <button key={l} className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        <label className="admin-field">
+          <span>Название ({lang.toUpperCase()}){lang === 'ru' ? ' *' : ''}</span>
+          <input type="text" value={f[`title_${lang}`]} onChange={(e) => set(`title_${lang}`, e.target.value)} />
+        </label>
+        <label className="admin-field">
+          <span>Описание ({lang.toUpperCase()})</span>
+          <textarea rows={2} value={f[`description_${lang}`]} onChange={(e) => set(`description_${lang}`, e.target.value)} />
+        </label>
+
+        <div className="menu-form-row">
+          <label className="admin-field">
+            <span>Цена</span>
+            <input type="number" value={f.price} onChange={(e) => set('price', e.target.value)} />
+          </label>
+          <label className="admin-field">
+            <span>Вес / объём</span>
+            <input type="number" value={f.weight_value} onChange={(e) => set('weight_value', e.target.value)} />
+          </label>
+          <label className="admin-field menu-unit-field">
+            <span>Ед.</span>
+            <select value={f.weight_unit} onChange={(e) => set('weight_unit', e.target.value)}>
+              {WEIGHT_UNITS.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {showKbju ? (
+          <div className="menu-form-row menu-kbju-row">
+            {[['calories', 'Ккал'], ['protein', 'Белки'], ['fat', 'Жиры'], ['carbs', 'Углев.']].map(([k, l]) => (
+              <label key={k} className="admin-field">
+                <span>{l}</span>
+                <input type="number" value={f.kbju[k]} onChange={(e) => setK(k, e.target.value)} />
+              </label>
+            ))}
+          </div>
+        ) : (
+          <button className="btn-link" onClick={() => setShowKbju(true)}>+ Добавить КБЖУ</button>
+        )}
+
+        <div className="menu-toggles">
+          <label className="menu-toggle">
+            <input type="checkbox" checked={f.is_new} onChange={(e) => set('is_new', e.target.checked)} /> Новинка
+          </label>
+          <label className="menu-toggle">
+            <input type="checkbox" checked={f.is_active} onChange={(e) => set('is_active', e.target.checked)} /> Показывать
+          </label>
+        </div>
+
+        <div className="menu-modal-foot">
+          <button className="btn-link" onClick={onCancel}>Отмена</button>
+          <button className="btn btn-primary" disabled={busy || !f.title_ru.trim()} onClick={submit}>
+            Сохранить
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
