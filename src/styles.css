@@ -568,7 +568,8 @@ body {
 }
 
 /* ─── Бренд halo ─── */
-.halo-brand {
+/* .footer a перебивает по специфичности — поэтому явно через .powered */
+.powered .halo-brand {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -577,7 +578,7 @@ body {
   text-decoration: none;
 }
 
-.halo-brand:hover {
+.powered .halo-brand:hover {
   text-decoration: underline;
 }
 
