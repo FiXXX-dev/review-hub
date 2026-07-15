@@ -66,3 +66,6 @@ alter table public.feedback         add column if not exists table_no text;
 alter table public.service_requests add column if not exists table_no text;
 alter table public.taxi_requests    add column if not exists table_no text;
 alter table public.appointments     add column if not exists table_no text;
+
+-- телефон владельца (суперадмин вводит при назначении) — по нему вход в кабинет
+alter table public.user_roles add column if not exists phone text;

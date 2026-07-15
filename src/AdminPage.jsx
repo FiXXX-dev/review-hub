@@ -779,6 +779,7 @@ function OwnersCard({ venue }) {
   const [rows, setRows] = useState(null)
   const [subs, setSubs] = useState([])
   const [chatId, setChatId] = useState('')
+  const [phone, setPhone] = useState('')
   const [role, setRole] = useState('owner')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -808,9 +809,15 @@ function OwnersCard({ venue }) {
     setError('')
     const { error: err } = await supabase
       .from('user_roles')
-      .upsert({ telegram_chat_id: id, venue_id: venue.id, role }, { onConflict: 'telegram_chat_id,venue_id' })
+      .upsert(
+        { telegram_chat_id: id, venue_id: venue.id, role, phone: phone.trim() || null },
+        { onConflict: 'telegram_chat_id,venue_id' }
+      )
     if (err) setError(/user_roles/.test(err.message) ? 'Выполни миграцию 0012 в Supabase' : err.message)
-    else setChatId('')
+    else {
+      setChatId('')
+      setPhone('')
+    }
     setBusy(false)
     load()
   }
@@ -837,7 +844,7 @@ function OwnersCard({ venue }) {
         rows.map((r) => (
           <div key={r.id} className="feedback-item owners-row">
             <span className="feedback-text">
-              {r.telegram_chat_id}
+              {r.phone || r.telegram_chat_id}
               <span className="owners-role">{r.role === 'owner' ? 'владелец' : 'персонал'}</span>
             </span>
             <button type="button" className="btn-link danger" onClick={() => remove(r.id)}>
@@ -863,6 +870,12 @@ function OwnersCard({ venue }) {
             </option>
           ))}
         </datalist>
+        <input
+          type="tel"
+          placeholder="Телефон (для входа)"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
         <select value={role} onChange={(e) => setRole(e.target.value)}>
           <option value="owner">владелец</option>
           <option value="staff">персонал (только просмотр)</option>
