@@ -1883,3 +1883,126 @@ body {
 .btn-link.danger {
   color: #dc2626;
 }
+
+/* ─── Кабинет владельца ─── */
+.cab-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.cab-logo .halo-logo-icon {
+  color: var(--accent);
+}
+
+.cab-venue-select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.cab-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.cab-tab {
+  flex: 1;
+  padding: 11px 0;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.cab-tab.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cab-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cab-block-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cab-block-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cab-block-actions .btn-link {
+  padding: 2px 4px;
+  font-size: 15px;
+}
+
+.cab-block-actions .btn-link.danger {
+  font-size: 13px;
+}
+
+.tables-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tables-add input {
+  flex: 1;
+}
+
+.tables-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.table-qr {
+  text-align: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.table-qr img {
+  width: 100%;
+  max-width: 150px;
+  height: auto;
+}
+
+.table-qr-name {
+  font-weight: 700;
+  font-size: 14px;
+  margin: 6px 0 4px;
+}

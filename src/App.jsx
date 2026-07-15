@@ -4,6 +4,7 @@ import AdminPage from './AdminPage.jsx'
 import RoomLinksPage from './RoomLinksPage.jsx'
 import ServicesAdminPage from './ServicesAdminPage.jsx'
 import LandingPage from './LandingPage.jsx'
+import CabinetPage from './CabinetPage.jsx'
 import { LangProvider } from './lib/i18n.jsx'
 
 function getSlug() {
@@ -23,6 +24,9 @@ export default function App() {
   }
   if (/\/admin\/?$/.test(window.location.pathname)) {
     return <AdminPage />
+  }
+  if (/\/cabinet\/?$/.test(window.location.pathname)) {
+    return <CabinetPage />
   }
 
   const slug = getSlug()

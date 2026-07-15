@@ -86,3 +86,10 @@ select stars, count(*) total, count(redirected_to) redirected from ratings group
 Таблица `presets` (`restaurant`, `clinic`, `hotel`, `salon`, `shop`, `auto`) описывает набор блоков страницы: `{ type, label_ru, label_uz, icon }` + `default_theme`. У заведения есть `preset_key`; при создании `enabled_blocks` заполняется из пресета (триггер в базе + предзаполнение в админке), дальше блоки можно включать/выключать вручную. Страница `/v/:slug` одна для всех вертикалей — рендерит блоки из `enabled_blocks`.
 
 Типы блоков: `rating` (ядро, обязателен; позиция — из пресета), `wifi`, `appointment` (форма записи → `appointments` + Telegram), `service` (плитки быстрых запросов → `service_requests` + Telegram), `services` (каталог услуг с ценами из таблицы `services`, редактор — `/admin/services/:slug`; заказы → `service_requests`), `taxi` (форма вызова такси → `taxi_requests` + Telegram, классы — в `venues.taxi_classes`), `contacts`, `phone`, `instagram`/`telegram`, и универсальные link-блоки (`menu`, `price`, `catalog`, `doctors`, `masters`, `info`) — URL хранятся в `venues.block_links` (jsonb). Страница `/v/:slug?room=204` привязывает заявки и оценки к номеру комнаты; ссылки для всех номеров генерит `/admin/rooms/:slug`. Порядок платформ отзывов — `venues.rating_platform_order` (у отелей Google первым).
+
+## Роли и кабинет владельца
+
+- **`/admin`** — суперадмин (email/пароль Supabase): все заведения, техническая настройка, назначение владельцев (карточка «Владельцы и доступ» → chat_id + телефон + роль).
+- **`/cabinet`** — кабинет владельца: вход по номеру телефона → бот halo присылает 4-значный код → сессия. Разделы: Профиль, Блоки (показать/скрыть + порядок), Столы (QR на каждый стол + «Скачать все QR PDF»). Доступ — только к своим заведениям из `user_roles`. Роль `staff` — только просмотр.
+
+Кабинет ходит за данными через бэкенд (`/api/cabinet/*`), который проверяет доступ по `user_roles` сервисным ключом — владелец не получает ключей Supabase. Нужна переменная Railway **`CABINET_SESSION_SECRET`** (любая длинная случайная строка — подпись сессий). Гость: `gethalo.uz/v/:slug?table=N` привязывает стол ко всем заявкам/оценкам.

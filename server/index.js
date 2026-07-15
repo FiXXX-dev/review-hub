@@ -2,6 +2,7 @@ import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
+import { createCabinetRouter } from './cabinet.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.join(__dirname, '..', 'dist')
@@ -28,8 +29,21 @@ const SERVICE_LABELS = {
   taxi: 'Вызвать такси',
 }
 
+// одиночная отправка (коды входа в кабинет)
+async function sendToChat(chatId, text) {
+  if (!BOT_TOKEN || !chatId) return
+  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text }),
+  })
+  if (!res.ok) console.error('sendToChat failed:', res.status, await res.text())
+}
+
 const app = express()
-app.use(express.json())
+app.use(express.json({ limit: '8mb' })) // base64-загрузки картинок в кабинете
+
+app.use('/api/cabinet', createCabinetRouter({ supabase, sendTelegram: sendToChat }))
 
 // рассылка всем активным подписчикам заведения; 403 = пользователь
 // заблокировал бота — подписка тихо деактивируется
