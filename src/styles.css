@@ -574,6 +574,11 @@ body {
   gap: 3px;
   font-weight: 700;
   color: #1f5bf0;
+  text-decoration: none;
+}
+
+.halo-brand:hover {
+  text-decoration: underline;
 }
 
 .halo-mark {

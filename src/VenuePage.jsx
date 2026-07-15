@@ -272,10 +272,15 @@ export default function VenuePage({ slug }) {
           )}
           <div className="powered">
             {t('powered')}{' '}
-            <span className="halo-brand">
+            <a
+              className="halo-brand"
+              href="https://gethalo.uz"
+              target="_blank"
+              rel="noreferrer"
+            >
               <HaloIcon className="halo-mark" size={13} strokeWidth={11} />
               halo
-            </span>
+            </a>
           </div>
         </footer>
       </div>
