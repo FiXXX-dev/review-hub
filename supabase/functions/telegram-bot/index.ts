@@ -43,6 +43,8 @@ const CONTACT_KB = {
 }
 const REMOVE_KB = { remove_keyboard: true }
 
+const CABINET_URL = Deno.env.get('CABINET_URL') || 'https://gethalo.uz/cabinet'
+
 const HELP =
   'Введите код заведения (например, ABI-4821) — его выдаёт владелец в админке halo.\n\n' +
   'Команды:\n/stats — сводка по заведению\n/stop — отписаться от уведомлений'
@@ -70,7 +72,7 @@ async function saveContact(chatId: string, msg: Record<string, unknown>) {
   await supabase.from('user_roles').update({ phone }).eq('telegram_chat_id', chatId)
   await send(
     chatId,
-    'Спасибо! Номер сохранён. Теперь вы сможете войти в кабинет halo по этому номеру.',
+    `Спасибо! Номер сохранён.\n\nВаш кабинет halo:\n${CABINET_URL}\n\nВходите по этому номеру телефона — код для входа придёт сюда, в этот чат.`,
     MAIN_KB,
   )
 }
@@ -213,9 +215,15 @@ Deno.serve(async (req) => {
     if (!text) return Response.json({ ok: true })
 
     if (text.startsWith('/start')) {
-      // на старте номер НЕ просим — только показываем кнопки, если уже подключён
-      const kb = (await hasSub(chatId)) ? MAIN_KB : REMOVE_KB
-      await send(chatId, `Привет! Это бот halo — уведомления об отзывах и заявках вашего заведения.\n\n${HELP}`, kb)
+      // на старте номер НЕ просим — только показываем кнопки, если уже подключён;
+      // подключённым сразу даём ссылку на кабинет
+      const connected = await hasSub(chatId)
+      const cabinet = connected ? `\n\nВаш кабинет halo: ${CABINET_URL}` : ''
+      await send(
+        chatId,
+        `Привет! Это бот halo — уведомления об отзывах и заявках вашего заведения.\n\n${HELP}${cabinet}`,
+        connected ? MAIN_KB : REMOVE_KB,
+      )
     } else if (text.startsWith('/stop') || text === '🔕 Отписаться') {
       await stop(chatId)
     } else if (text.startsWith('/stats') || text === '📊 Статистика') {
