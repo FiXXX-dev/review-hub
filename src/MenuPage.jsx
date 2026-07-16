@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { Search, UtensilsCrossed, ArrowLeft } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Search, UtensilsCrossed, ArrowLeft, X } from 'lucide-react'
 import { supabase } from './lib/supabase.js'
 import { formatPrice } from './lib/blocks.js'
 import { pick, MENU_UI, venueLangs } from './lib/menu.js'
@@ -15,6 +15,7 @@ export default function MenuPage({ slug }) {
   const [sectionId, setSectionId] = useState(null)
   const [catId, setCatId] = useState('all')
   const [query, setQuery] = useState('')
+  const [selected, setSelected] = useState(null) // блюдо в модалке
 
   useEffect(() => {
     let cancelled = false
@@ -188,22 +189,34 @@ export default function MenuPage({ slug }) {
         ) : (
           <div className="menu-grid">
             {view.list.map((item) => (
-              <MenuCard key={item.id} item={item} lang={lang} />
+              <MenuCard key={item.id} item={item} lang={lang} onOpen={() => setSelected(item)} />
             ))}
           </div>
         )}
       </div>
       <div className="menu-bg" style={bg ? { backgroundImage: `url(${bg})` } : undefined} aria-hidden="true" />
+      {selected && <DishModal item={selected} lang={lang} onClose={() => setSelected(null)} />}
     </div>
   )
 }
 
-function MenuCard({ item, lang }) {
+function MenuCard({ item, lang, onOpen }) {
   const desc = pick(item, 'description', lang)
   const k = item.kbju
   const hasKbju = k && (k.calories || k.protein || k.fat || k.carbs)
   return (
-    <div className="menu-card">
+    <div
+      className="menu-card"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpen()
+        }
+      }}
+    >
       <div className="menu-photo">
         {item.photo_url ? (
           <img src={item.photo_url} alt="" loading="lazy" />
@@ -234,6 +247,108 @@ function MenuCard({ item, lang }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function DishModal({ item, lang, onClose }) {
+  const t = MENU_UI[lang] || MENU_UI.ru
+  const desc = pick(item, 'description', lang)
+  const k = item.kbju
+  const hasKbju = k && (k.calories || k.protein || k.fat || k.carbs)
+  const [drag, setDrag] = useState(0)
+  const startY = useRef(null)
+
+  // блокируем скролл фона + закрытие по Escape, пока модалка открыта
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  // свайп вниз для закрытия (мобильный bottom-sheet)
+  function onTouchStart(e) {
+    startY.current = e.touches[0].clientY
+  }
+  function onTouchMove(e) {
+    if (startY.current == null) return
+    const dy = e.touches[0].clientY - startY.current
+    setDrag(dy > 0 ? dy : 0)
+  }
+  function onTouchEnd() {
+    if (drag > 90) onClose()
+    else setDrag(0)
+    startY.current = null
+  }
+
+  return (
+    <div className="dish-overlay" onClick={onClose}>
+      <div
+        className="dish-sheet"
+        style={drag ? { transform: `translateY(${drag}px)`, transition: 'none' } : undefined}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="dish-photo"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          {item.photo_url ? (
+            <img src={item.photo_url} alt="" />
+          ) : (
+            <div className="dish-photo-empty">
+              <UtensilsCrossed size={46} strokeWidth={1.4} />
+            </div>
+          )}
+          {item.is_new && <span className="menu-new dish-new">NEW</span>}
+          <button className="dish-close" onClick={onClose} aria-label={t.close}>
+            <X size={20} strokeWidth={2.4} />
+          </button>
+        </div>
+
+        <div className="dish-body">
+          <h2 className="dish-title">{pick(item, 'title', lang)}</h2>
+          <div className="dish-badges">
+            {item.price != null && <span className="dish-price">{formatPrice(item.price, lang)}</span>}
+            {item.weight_value != null && item.weight_value !== '' && (
+              <span className="dish-weight">
+                {item.weight_value} {item.weight_unit || ''}
+              </span>
+            )}
+          </div>
+          {desc && <p className="dish-desc">{desc}</p>}
+          {hasKbju && (
+            <div className="dish-nutri">
+              <div className="dish-nutri-label">{t.nutrition}</div>
+              <div className="dish-nutri-grid">
+                <NutriCard value={k.calories} label={t.kcal} />
+                <NutriCard value={k.protein} label={t.protein} />
+                <NutriCard value={k.fat} label={t.fat} />
+                <NutriCard value={k.carbs} label={t.carbs} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NutriCard({ value, label }) {
+  return (
+    <div className="dish-nutri-card">
+      <span className="dish-nutri-value">{value != null && value !== '' ? value : '—'}</span>
+      <span className="dish-nutri-name">{label}</span>
     </div>
   )
 }

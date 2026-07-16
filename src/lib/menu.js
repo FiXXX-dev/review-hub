@@ -5,10 +5,22 @@ export function pick(row, field, lang) {
 }
 
 export const MENU_UI = {
-  ru: { all: 'Все', new: 'Новинки', search: 'Поиск блюда', empty: 'Пока ничего нет в этом разделе', menu: 'Меню' },
-  uz: { all: 'Hammasi', new: 'Yangi', search: 'Taom qidirish', empty: "Bu bo'limda hozircha hech narsa yo'q", menu: 'Menyu' },
-  en: { all: 'All', new: 'New', search: 'Search a dish', empty: 'Nothing here yet', menu: 'Menu' },
-  tr: { all: 'Hepsi', new: 'Yeni', search: 'Yemek ara', empty: 'Burada henüz bir şey yok', menu: 'Menü' },
+  ru: {
+    all: 'Все', new: 'Новинки', search: 'Поиск блюда', empty: 'Пока ничего нет в этом разделе', menu: 'Меню',
+    nutrition: 'Пищевая ценность', kcal: 'ккал', protein: 'Белки', fat: 'Жиры', carbs: 'Углеводы', close: 'Закрыть',
+  },
+  uz: {
+    all: 'Hammasi', new: 'Yangi', search: 'Taom qidirish', empty: "Bu bo'limda hozircha hech narsa yo'q", menu: 'Menyu',
+    nutrition: 'Oziqaviy qiymati', kcal: 'kkal', protein: 'Oqsil', fat: "Yog'", carbs: 'Uglevodlar', close: 'Yopish',
+  },
+  en: {
+    all: 'All', new: 'New', search: 'Search a dish', empty: 'Nothing here yet', menu: 'Menu',
+    nutrition: 'Nutrition', kcal: 'kcal', protein: 'Protein', fat: 'Fat', carbs: 'Carbs', close: 'Close',
+  },
+  tr: {
+    all: 'Hepsi', new: 'Yeni', search: 'Yemek ara', empty: 'Burada henüz bir şey yok', menu: 'Menü',
+    nutrition: 'Besin değeri', kcal: 'kcal', protein: 'Protein', fat: 'Yağ', carbs: 'Karbonhidrat', close: 'Kapat',
+  },
 }
 
 // Все языки, которые заведение может включить для меню.
