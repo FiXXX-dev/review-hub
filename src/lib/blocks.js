@@ -31,7 +31,7 @@ export function formatPrice(p, lang = 'ru') {
   const n = Number(p)
   if (!Number.isFinite(n)) return ''
   const num = String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-  const unit = lang === 'en' ? 'UZS' : lang === 'uz' ? "so'm" : 'сум'
+  const unit = lang === 'en' ? 'UZS' : lang === 'uz' || lang === 'tr' ? "so'm" : 'сум'
   return `${num} ${unit}`
 }
 

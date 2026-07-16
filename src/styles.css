@@ -2574,3 +2574,34 @@ body {
   font-size: 14px;
   cursor: pointer;
 }
+
+/* выбор языков меню в кабинете */
+.menu-langs-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--bg, #f7f8fa);
+  border-radius: 12px;
+}
+.menu-langs-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted, #6b7280);
+}
+.menu-lang-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.menu-lang-check input[disabled] {
+  cursor: default;
+}
+.menu-langs-base {
+  color: var(--muted, #9aa0a8);
+  font-size: 12px;
+}

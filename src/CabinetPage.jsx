@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import QRCode from 'qrcode'
 import { HaloIcon } from './lib/logo.jsx'
 import { BLOCK_DEFS, formatPrice } from './lib/blocks.js'
-import { pick } from './lib/menu.js'
+import { pick, venueLangs, MENU_LANGS, LANG_NAMES } from './lib/menu.js'
 
 const TOKEN_KEY = 'halo-cabinet-token'
 
@@ -751,7 +751,15 @@ function MenuSection({ token, venue, isOwner }) {
   if (!data) return <div className="spinner" style={{ margin: '24px auto' }} />
 
   const { sections, categories, items } = data
+  const langs = venueLangs({ menu_languages: data.menu_languages })
   const guestUrl = `${import.meta.env.BASE_URL}v/${venue.slug}/menu`
+
+  async function toggleLang(l) {
+    if (l === 'ru') return // русский — базовый, всегда включён (фолбэк)
+    const next = langs.includes(l) ? langs.filter((x) => x !== l) : [...langs, l]
+    const ordered = MENU_LANGS.filter((x) => x === 'ru' || next.includes(x))
+    await run(() => api(`/venue/${venue.id}`, { method: 'PATCH', token, body: { menu_languages: ordered } }))
+  }
 
   return (
     <div className="card admin-form menu-mgr">
@@ -760,6 +768,23 @@ function MenuSection({ token, venue, isOwner }) {
           Посмотреть как гость ↗
         </a>
       </div>
+      {isOwner && (
+        <div className="menu-langs-pick">
+          <span className="menu-langs-label">Языки меню на странице:</span>
+          {MENU_LANGS.map((l) => (
+            <label key={l} className="menu-lang-check">
+              <input
+                type="checkbox"
+                checked={langs.includes(l)}
+                disabled={l === 'ru'}
+                onChange={() => toggleLang(l)}
+              />
+              {LANG_NAMES[l]}
+              {l === 'ru' && <span className="menu-langs-base"> (базовый)</span>}
+            </label>
+          ))}
+        </div>
+      )}
       {error && <p className="admin-error">{error}</p>}
 
       {sections.length === 0 && (
@@ -888,6 +913,7 @@ function MenuSection({ token, venue, isOwner }) {
         <TitleForm
           title={form.kind === 'section' ? 'Секция' : 'Категория'}
           row={form.row}
+          langs={langs}
           onCancel={() => setForm(null)}
           onSave={(patch) =>
             run(async () => {
@@ -902,6 +928,7 @@ function MenuSection({ token, venue, isOwner }) {
       {form && form.kind === 'item' && (
         <ItemForm
           row={form.row}
+          langs={langs}
           onCancel={() => setForm(null)}
           onSave={saveItem}
           onUpload={uploadPhoto}
@@ -971,18 +998,19 @@ function MenuItemRow({ item, isOwner, onPrice, onEdit, onToggle, onMove, onDelet
   )
 }
 
-/* мини-форма для секции/категории: RU/UZ/EN названия */
-function TitleForm({ title, row, onCancel, onSave }) {
+/* мини-форма для секции/категории: названия на языках заведения */
+function TitleForm({ title, row, langs = ['ru', 'uz', 'en'], onCancel, onSave }) {
   const [v, setV] = useState({
     title_ru: row?.title_ru || '',
     title_uz: row?.title_uz || '',
     title_en: row?.title_en || '',
+    title_tr: row?.title_tr || '',
   })
   return (
     <div className="menu-modal-back" onClick={onCancel}>
       <div className="menu-modal" onClick={(e) => e.stopPropagation()}>
         <h3>{row ? `${title}: изменить` : `Новая ${title.toLowerCase()}`}</h3>
-        {['ru', 'uz', 'en'].map((l) => (
+        {langs.map((l) => (
           <label key={l} className="admin-field">
             <span>Название ({l.toUpperCase()}){l === 'ru' ? ' *' : ''}</span>
             <input
@@ -1004,8 +1032,8 @@ function TitleForm({ title, row, onCancel, onSave }) {
 }
 
 /* полная форма позиции */
-function ItemForm({ row, onCancel, onSave, onUpload, setError }) {
-  const [lang, setLang] = useState('ru')
+function ItemForm({ row, langs = ['ru', 'uz', 'en'], onCancel, onSave, onUpload, setError }) {
+  const [lang, setLang] = useState(langs[0] || 'ru')
   const [busy, setBusy] = useState(false)
   const [showKbju, setShowKbju] = useState(() => {
     const k = row?.kbju
@@ -1016,9 +1044,11 @@ function ItemForm({ row, onCancel, onSave, onUpload, setError }) {
     title_ru: row?.title_ru || '',
     title_uz: row?.title_uz || '',
     title_en: row?.title_en || '',
+    title_tr: row?.title_tr || '',
     description_ru: row?.description_ru || '',
     description_uz: row?.description_uz || '',
     description_en: row?.description_en || '',
+    description_tr: row?.description_tr || '',
     price: row?.price ?? '',
     weight_value: row?.weight_value ?? '',
     weight_unit: row?.weight_unit || 'г',
@@ -1058,9 +1088,11 @@ function ItemForm({ row, onCancel, onSave, onUpload, setError }) {
       title_ru: f.title_ru.trim(),
       title_uz: f.title_uz.trim() || null,
       title_en: f.title_en.trim() || null,
+      title_tr: f.title_tr.trim() || null,
       description_ru: f.description_ru.trim() || null,
       description_uz: f.description_uz.trim() || null,
       description_en: f.description_en.trim() || null,
+      description_tr: f.description_tr.trim() || null,
       price: f.price === '' ? null : Number(f.price),
       weight_value: f.weight_value === '' ? null : Number(f.weight_value),
       weight_unit: f.weight_unit,
@@ -1100,7 +1132,7 @@ function ItemForm({ row, onCancel, onSave, onUpload, setError }) {
         )}
 
         <div className="menu-lang-tabs">
-          {['ru', 'uz', 'en'].map((l) => (
+          {langs.map((l) => (
             <button key={l} className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>
               {l.toUpperCase()}
             </button>
