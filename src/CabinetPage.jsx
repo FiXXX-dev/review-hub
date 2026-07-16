@@ -3,6 +3,8 @@ import QRCode from 'qrcode'
 import { HaloIcon } from './lib/logo.jsx'
 import { BLOCK_DEFS, formatPrice } from './lib/blocks.js'
 import { pick, venueLangs, MENU_LANGS, LANG_NAMES } from './lib/menu.js'
+import { api } from './lib/cabinetApi.js'
+import WaiterScreen from './WaiterScreen.jsx'
 
 const TOKEN_KEY = 'halo-cabinet-token'
 
@@ -12,20 +14,6 @@ function getToken() {
   } catch {
     return ''
   }
-}
-
-async function api(path, { method = 'GET', body, token } = {}) {
-  const res = await fetch(`/api/cabinet${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-  return data
 }
 
 export default function CabinetPage() {
@@ -192,6 +180,40 @@ function CabinetShell({ token, onLogout }) {
   const venue = state.venues.find((v) => v.id === venueId) || state.venues[0]
   const isOwner = venue.role === 'owner'
 
+  const venueSelect = state.venues.length > 1 && (
+    <select className="cab-venue-select" value={venue.id} onChange={(e) => setVenueId(e.target.value)}>
+      {state.venues.map((v) => (
+        <option key={v.id} value={v.id}>{v.name}</option>
+      ))}
+    </select>
+  )
+
+  // Официант видит только рабочий экран (POS), без настроек заведения.
+  if (venue.role === 'waiter') {
+    return (
+      <div className="page">
+        <div className="container waiter-container">
+          <div className="admin-head">
+            <span className="cab-logo">
+              <HaloIcon size={20} className="halo-logo-icon" /> официант
+            </span>
+            <button className="btn-link" onClick={onLogout}>Выйти</button>
+          </div>
+          {venueSelect}
+          <WaiterScreen key={venue.id} token={token} venue={venue} />
+        </div>
+      </div>
+    )
+  }
+
+  const tabs = [
+    ['profile', 'Профиль'],
+    ['blocks', 'Блоки'],
+    ['menu', 'Меню'],
+    ['tables', 'Столы'],
+    ...(isOwner ? [['orders', 'Заказы']] : []),
+  ]
+
   return (
     <div className="page">
       <div className="container admin-container">
@@ -204,27 +226,10 @@ function CabinetShell({ token, onLogout }) {
           </button>
         </div>
 
-        {state.venues.length > 1 && (
-          <select
-            className="cab-venue-select"
-            value={venue.id}
-            onChange={(e) => setVenueId(e.target.value)}
-          >
-            {state.venues.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
-        )}
+        {venueSelect}
 
         <div className="cab-tabs">
-          {[
-            ['profile', 'Профиль'],
-            ['blocks', 'Блоки'],
-            ['menu', 'Меню'],
-            ['tables', 'Столы'],
-          ].map(([k, label]) => (
+          {tabs.map(([k, label]) => (
             <button
               key={k}
               className={`cab-tab ${tab === k ? 'on' : ''}`}
@@ -239,6 +244,7 @@ function CabinetShell({ token, onLogout }) {
         {tab === 'blocks' && <BlocksSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
         {tab === 'menu' && <MenuSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
         {tab === 'tables' && <TablesSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
+        {tab === 'orders' && isOwner && <OrdersSection key={venue.id} token={token} venue={venue} />}
       </div>
     </div>
   )
@@ -1211,6 +1217,78 @@ function ItemForm({ row, langs = ['ru', 'uz', 'en'], onCancel, onSave, onUpload,
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ─── Заказы: обзор для владельца (открытые столы + выручка за день) ─── */
+function OrdersSection({ token, venue }) {
+  const [open, setOpen] = useState(null)
+  const [history, setHistory] = useState(null)
+  const [error, setError] = useState('')
+
+  const load = useCallback(() => {
+    Promise.all([
+      api(`/venue/${venue.id}/orders/open`, { token }),
+      api(`/venue/${venue.id}/orders/history`, { token }),
+    ])
+      .then(([o, h]) => {
+        setOpen(o.orders)
+        setHistory(h)
+      })
+      .catch((e) => setError(e.message))
+  }, [token, venue.id])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (error) return <p className="admin-error" style={{ marginTop: 16 }}>{error}</p>
+  if (!open || !history) return <div className="spinner" style={{ margin: '24px auto' }} />
+
+  const fmt = (n) => formatPrice(n, 'ru')
+  const time = (s) => (s ? new Date(s).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '')
+
+  return (
+    <div className="card admin-form">
+      <div className="ord-stat">
+        <div><span className="ord-stat-num">{fmt(history.revenue)}</span><span className="ord-stat-lbl">выручка сегодня</span></div>
+        <div><span className="ord-stat-num">{history.count}</span><span className="ord-stat-lbl">закрыто заказов</span></div>
+        <div><span className="ord-stat-num">{open.length}</span><span className="ord-stat-lbl">открытых столов</span></div>
+      </div>
+
+      <div className="ord-head">
+        <h3 className="admin-subtitle">Открытые столы</h3>
+        <button className="btn-link" onClick={load}>Обновить</button>
+      </div>
+      {open.length === 0 ? (
+        <p className="admin-empty">Открытых столов нет.</p>
+      ) : (
+        open.map((o) => (
+          <div key={o.id} className="ord-row">
+            <span className="ord-row-main">
+              Стол {o.table_number}
+              <span className="ord-row-sub">{o.waiter_phone || '—'} · с {time(o.created_at)}</span>
+            </span>
+            <span className="ord-row-sum">{fmt(o.total)}</span>
+          </div>
+        ))
+      )}
+
+      <h3 className="admin-subtitle" style={{ marginTop: 18 }}>Закрытые сегодня</h3>
+      {history.orders.length === 0 ? (
+        <p className="admin-empty">Пока нет закрытых заказов.</p>
+      ) : (
+        history.orders.map((o) => (
+          <div key={o.id} className="ord-row done">
+            <span className="ord-row-main">
+              Стол {o.table_number}
+              <span className="ord-row-sub">{o.waiter_phone || '—'} · {time(o.closed_at)}</span>
+            </span>
+            <span className="ord-row-sum">{fmt(o.total)}</span>
+          </div>
+        ))
+      )}
     </div>
   )
 }

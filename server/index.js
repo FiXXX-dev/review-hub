@@ -51,7 +51,47 @@ async function sendToChat(chatId, text) {
 const app = express()
 app.use(express.json({ limit: '8mb' })) // base64-загрузки картинок в кабинете
 
-app.use('/api/cabinet', createCabinetRouter({ supabase, sendTelegram: sendToChat }))
+app.use('/api/cabinet', createCabinetRouter({ supabase, sendTelegram: sendToChat, broadcast: broadcastTelegram }))
+
+// ── гостевой счёт (read-only): смотрит тот же заказ, что вбил официант ──
+app.get('/api/order', async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'not configured' })
+    const slug = String(req.query.slug || '')
+    const table = parseInt(req.query.table, 10)
+    if (!slug || !Number.isInteger(table)) return res.status(400).json({ error: 'bad request' })
+    const { data: venue } = await supabase.from('venues').select('id, name, accent_color').eq('slug', slug).maybeSingle()
+    if (!venue) return res.status(404).json({ error: 'venue not found' })
+    const vpub = { id: venue.id, name: venue.name, accent_color: venue.accent_color }
+    const { data: order } = await supabase
+      .from('orders').select('id, created_at')
+      .eq('venue_id', venue.id).eq('table_number', table).eq('status', 'open').maybeSingle()
+    if (!order) return res.json({ order: null, venue: vpub })
+    const { data: items } = await supabase
+      .from('order_items').select('title_snapshot, price_snapshot, qty').eq('order_id', order.id).order('created_at')
+    const list = items ?? []
+    const total = list.reduce((s, i) => s + Number(i.price_snapshot) * i.qty, 0)
+    res.json({ order: { items: list, total, created_at: order.created_at }, venue: vpub })
+  } catch (err) {
+    console.error('api/order error:', err)
+    res.status(500).json({ error: 'internal' })
+  }
+})
+
+// ── гость зовёт официанта ──
+app.post('/api/call-waiter', async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'not configured' })
+    const { venue_id, table_no } = req.body || {}
+    if (!venue_id) return res.status(400).json({ error: 'venue_id required' })
+    const t = table_no != null ? String(table_no).trim().slice(0, 20) : ''
+    await broadcastTelegram(venue_id, `🙋 ${t ? `Стол ${t}` : 'Гость'} зовёт официанта`)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('call-waiter error:', err)
+    res.status(500).json({ error: 'internal' })
+  }
+})
 
 // рассылка всем активным подписчикам заведения; 403 = пользователь
 // заблокировал бота — подписка тихо деактивируется

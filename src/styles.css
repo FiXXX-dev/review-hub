@@ -2777,3 +2777,133 @@ body {
   .dish-overlay, .dish-sheet { animation: none; }
   .dish-sheet { transition: none; }
 }
+
+/* ─── Официант (POS) ─── */
+.waiter-container { max-width: 640px; }
+.waiter { margin-top: 10px; }
+
+.wt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+.wt-tile {
+  border: none;
+  border-radius: 16px;
+  padding: 20px 14px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  color: #fff;
+  text-align: left;
+}
+.wt-tile.free { background: #16a34a; }
+.wt-tile.busy { background: #ea8f27; }
+.wt-num { font-size: 19px; font-weight: 800; }
+.wt-state { font-size: 15px; font-weight: 600; opacity: 0.95; }
+
+/* экран заказа */
+.wt-order-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.wt-back {
+  border: none; background: none; cursor: pointer;
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  color: var(--ink, #1a1d21);
+}
+.wt-order-title { font-size: 20px; font-weight: 800; flex: 1; }
+.wt-bill-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line, #e6e8ec); background: #fff;
+  border-radius: 12px; padding: 8px 12px; font-weight: 700; font-size: 14px;
+  cursor: pointer; color: var(--ink, #1a1d21);
+}
+.wt-search {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg, #f2f4f7); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px;
+  color: #8a8f98;
+}
+.wt-search input { border: none; background: none; outline: none; width: 100%; font-size: 16px; color: var(--ink, #1a1d21); }
+.wt-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 6px; -webkit-overflow-scrolling: touch; }
+.wt-chip {
+  flex: 0 0 auto; border: 1px solid var(--line, #e6e8ec); background: #fff;
+  border-radius: 999px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.wt-chip.on { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); color: #fff; }
+
+.wt-items { display: flex; flex-direction: column; gap: 8px; padding-bottom: 90px; }
+.wt-item {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 1px solid var(--line, #eceef1); border-radius: 14px; padding: 12px 14px;
+}
+.wt-item-info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.wt-item-name { font-weight: 600; font-size: 16px; }
+.wt-item-price { font-size: 14px; color: #6b7280; }
+.wt-add {
+  flex: 0 0 auto; width: 46px; height: 46px; border-radius: 12px; border: none;
+  background: var(--accent, #2563eb); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.wt-stepper { display: flex; align-items: center; gap: 6px; }
+.wt-stepper button {
+  width: 40px; height: 40px; border-radius: 11px; border: 1px solid var(--accent, #2563eb);
+  background: #fff; color: var(--accent, #2563eb); display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.wt-stepper span { min-width: 26px; text-align: center; font-weight: 800; font-size: 17px; }
+
+.wt-sticky { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--page-bg, #fff) 70%, transparent); }
+.wt-sticky { display: flex; justify-content: center; }
+.wt-send {
+  width: 100%; max-width: 610px; border: none; border-radius: 16px; padding: 16px 20px;
+  background: var(--accent, #2563eb); color: #fff; font-size: 17px; font-weight: 800; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+}
+.wt-send:disabled { opacity: 0.6; }
+.wt-send-sum { font-size: 15px; font-weight: 700; opacity: 0.95; }
+
+.wt-bill .wt-bill-body { padding: 20px; }
+.wt-bill-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+.wt-bill-row { display: flex; justify-content: space-between; font-size: 15px; gap: 10px; }
+.wt-bill-total {
+  display: flex; justify-content: space-between; font-weight: 800; font-size: 18px;
+  border-top: 1px solid var(--line, #eceef1); margin-top: 8px; padding-top: 12px;
+}
+.wt-bill-actions { display: flex; gap: 10px; margin-top: 18px; }
+.wt-bill-actions .btn { flex: 1; }
+
+/* ─── Владелец: обзор заказов ─── */
+.ord-stat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px; }
+.ord-stat > div { background: var(--bg, #f6f8fa); border-radius: 14px; padding: 12px 10px; display: flex; flex-direction: column; gap: 3px; }
+.ord-stat-num { font-size: 18px; font-weight: 800; color: var(--ink, #1a1d21); }
+.ord-stat-lbl { font-size: 11px; color: #6b7280; line-height: 1.2; }
+.ord-head { display: flex; align-items: center; justify-content: space-between; }
+.ord-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line, #eceef1); }
+.ord-row-main { display: flex; flex-direction: column; gap: 2px; font-weight: 600; }
+.ord-row-sub { font-size: 12px; color: #8a8f98; font-weight: 400; }
+.ord-row-sum { font-weight: 800; color: var(--accent, #2563eb); }
+.ord-row.done .ord-row-sum { color: var(--ink, #1a1d21); }
+
+/* ─── Гостевой счёт ─── */
+.bill-page { max-width: 480px; margin: 0 auto; padding: 0 16px 32px; }
+.bill-head { display: flex; align-items: center; gap: 10px; padding: 14px 0; }
+.bill-back, .bill-refresh { border: none; background: none; cursor: pointer; color: var(--ink, #1a1d21); display: flex; }
+.bill-title { flex: 1; font-weight: 800; font-size: 17px; }
+.bill-card { background: #fff; border: 1px solid var(--line, #eceef1); border-radius: 16px; padding: 16px; }
+.bill-list { display: flex; flex-direction: column; gap: 8px; }
+.bill-row { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+.bill-row-name { color: var(--ink, #1a1d21); }
+.bill-row-sum { font-weight: 600; }
+.bill-total {
+  display: flex; justify-content: space-between; font-weight: 800; font-size: 19px;
+  border-top: 1px solid var(--line, #eceef1); margin-top: 10px; padding-top: 12px;
+}
+.bill-note { font-size: 12px; color: #8a8f98; margin: 10px 0 0; }
+.bill-empty { text-align: center; color: #6b7280; padding: 24px 0; }
+.bill-call { width: 100%; margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.bill-link { justify-content: center; }

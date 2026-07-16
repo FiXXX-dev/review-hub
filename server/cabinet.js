@@ -49,8 +49,9 @@ export function phoneKey(p) {
   return digits.slice(-9)
 }
 
-export function createCabinetRouter({ supabase, sendTelegram }) {
+export function createCabinetRouter({ supabase, sendTelegram, broadcast }) {
   const router = express.Router()
+  const notifyVenue = broadcast || (async () => 0)
 
   // ── вход: запрос кода ──
   router.post('/request-code', async (req, res) => {
@@ -341,6 +342,124 @@ export function createCabinetRouter({ supabase, sendTelegram }) {
     if (!table) return res.status(400).json({ error: 'bad kind' })
     await supabase.from(table).delete().eq('id', req.params.rowId).eq('venue_id', req.params.id)
     res.json({ ok: true })
+  })
+
+  // ── заказы (POS официанта) ──
+  const money = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+
+  // chat_id официанта → телефон (для аналитики владельца)
+  async function waiterMap(venueId) {
+    const { data } = await supabase.from('user_roles').select('telegram_chat_id, phone').eq('venue_id', venueId)
+    const m = {}
+    for (const r of data ?? []) m[r.telegram_chat_id] = r.phone || null
+    return m
+  }
+
+  // собрать заказ с позициями и итогом
+  async function loadOrder(orderId) {
+    const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).maybeSingle()
+    if (!order) return null
+    const { data: items } = await supabase
+      .from('order_items').select('*').eq('order_id', orderId).order('created_at')
+    const list = items ?? []
+    const total = list.reduce((s, i) => s + Number(i.price_snapshot) * i.qty, 0)
+    return { ...order, items: list, total }
+  }
+
+  // открытые счета заведения (для сетки столов и обзора владельца)
+  router.get('/venue/:id/orders/open', auth, async (req, res) => {
+    if (!(await loadRole(req.chatId, req.params.id))) return res.status(403).json({ error: 'forbidden' })
+    const { data: orders } = await supabase
+      .from('orders').select('*').eq('venue_id', req.params.id).eq('status', 'open').order('created_at')
+    const ids = (orders ?? []).map((o) => o.id)
+    const { data: items } = ids.length
+      ? await supabase.from('order_items').select('order_id, price_snapshot, qty').in('order_id', ids)
+      : { data: [] }
+    const totals = {}
+    for (const it of items ?? []) totals[it.order_id] = (totals[it.order_id] || 0) + Number(it.price_snapshot) * it.qty
+    const wm = await waiterMap(req.params.id)
+    res.json({
+      orders: (orders ?? []).map((o) => ({ ...o, total: totals[o.id] || 0, waiter_phone: wm[o.waiter_id] || null })),
+    })
+  })
+
+  // текущий открытый счёт стола
+  router.get('/venue/:id/orders/table/:num', auth, async (req, res) => {
+    if (!(await loadRole(req.chatId, req.params.id))) return res.status(403).json({ error: 'forbidden' })
+    const { data: order } = await supabase
+      .from('orders').select('id')
+      .eq('venue_id', req.params.id).eq('table_number', parseInt(req.params.num, 10)).eq('status', 'open')
+      .maybeSingle()
+    res.json({ order: order ? await loadOrder(order.id) : null })
+  })
+
+  // добавить позиции к столу (создаёт открытый счёт при необходимости) + уведомить кухню
+  router.post('/venue/:id/orders/table/:num/items', auth, async (req, res) => {
+    const role = await loadRole(req.chatId, req.params.id)
+    if (role !== 'owner' && role !== 'waiter') return res.status(403).json({ error: 'forbidden' })
+    const num = parseInt(req.params.num, 10)
+    const items = Array.isArray(req.body?.items) ? req.body.items : []
+    if (!Number.isInteger(num) || !items.length) return res.status(400).json({ error: 'bad request' })
+
+    // найти/создать открытый счёт
+    let { data: order } = await supabase
+      .from('orders').select('id')
+      .eq('venue_id', req.params.id).eq('table_number', num).eq('status', 'open').maybeSingle()
+    if (!order) {
+      const ins = await supabase
+        .from('orders').insert({ venue_id: req.params.id, table_number: num, waiter_id: req.chatId })
+        .select('id').maybeSingle()
+      if (ins.error) return res.status(400).json({ error: ins.error.message })
+      order = ins.data
+    }
+    const rows = items
+      .filter((i) => i && (i.title || i.menu_item_id) && Number(i.qty) > 0)
+      .map((i) => ({
+        order_id: order.id,
+        menu_item_id: i.menu_item_id || null,
+        title_snapshot: String(i.title || '').slice(0, 200),
+        price_snapshot: Number(i.price) || 0,
+        qty: Math.min(99, Math.max(1, parseInt(i.qty, 10) || 1)),
+      }))
+    if (rows.length) {
+      const { error } = await supabase.from('order_items').insert(rows)
+      if (error) return res.status(400).json({ error: error.message })
+      const added = rows.reduce((s, r) => s + r.price_snapshot * r.qty, 0)
+      const lines = rows.map((r) => `• ${r.qty}× ${r.title_snapshot}`).join('\n')
+      notifyVenue(req.params.id, `🍳 Стол ${num} — на кухню:\n${lines}\n\nДобавлено на ${money(added)} сум`)
+    }
+    res.json({ order: await loadOrder(order.id) })
+  })
+
+  // закрыть счёт (после оплаты) — стол снова свободен
+  router.post('/venue/:id/orders/:orderId/close', auth, async (req, res) => {
+    const role = await loadRole(req.chatId, req.params.id)
+    if (role !== 'owner' && role !== 'waiter') return res.status(403).json({ error: 'forbidden' })
+    const { error } = await supabase
+      .from('orders').update({ status: 'closed', closed_at: new Date().toISOString() })
+      .eq('id', req.params.orderId).eq('venue_id', req.params.id).eq('status', 'open')
+    if (error) return res.status(400).json({ error: error.message })
+    res.json({ ok: true })
+  })
+
+  // история закрытых за сегодня + выручка (аналитика владельца)
+  router.get('/venue/:id/orders/history', auth, async (req, res) => {
+    if ((await loadRole(req.chatId, req.params.id)) !== 'owner') return res.status(403).json({ error: 'forbidden' })
+    const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0)
+    const { data: orders } = await supabase
+      .from('orders').select('*')
+      .eq('venue_id', req.params.id).eq('status', 'closed')
+      .gte('closed_at', dayStart.toISOString()).order('closed_at', { ascending: false })
+    const ids = (orders ?? []).map((o) => o.id)
+    const { data: items } = ids.length
+      ? await supabase.from('order_items').select('order_id, price_snapshot, qty').in('order_id', ids)
+      : { data: [] }
+    const totals = {}
+    for (const it of items ?? []) totals[it.order_id] = (totals[it.order_id] || 0) + Number(it.price_snapshot) * it.qty
+    const wm = await waiterMap(req.params.id)
+    const list = (orders ?? []).map((o) => ({ ...o, total: totals[o.id] || 0, waiter_phone: wm[o.waiter_id] || null }))
+    const revenue = list.reduce((s, o) => s + o.total, 0)
+    res.json({ orders: list, revenue, count: list.length })
   })
 
   return router
