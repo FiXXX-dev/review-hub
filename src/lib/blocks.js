@@ -110,7 +110,12 @@ export function resolveBlocks(venue, lang = 'ru') {
     .filter((t, i) => defs[t] && types.indexOf(t) === i)
     .map((t) => ({
       type: t,
-      label: lang === 'en' ? defs[t].label_en || defs[t].label_ru : defs[t].label_ru,
+      label:
+        lang === 'en'
+          ? defs[t].label_en || defs[t].label_ru
+          : lang === 'uz'
+            ? defs[t].label_uz || defs[t].label_ru
+            : defs[t].label_ru,
       icon: defs[t].icon,
     }))
 }

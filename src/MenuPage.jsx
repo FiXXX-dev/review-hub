@@ -6,7 +6,10 @@ import { pick, MENU_UI, venueLangs } from './lib/menu.js'
 import { getInitialLang } from './lib/i18n.jsx'
 
 export default function MenuPage({ slug }) {
-  const [lang, setLang] = useState(() => (getInitialLang() === 'en' ? 'en' : 'ru'))
+  const [lang, setLang] = useState(() => {
+    const init = getInitialLang()
+    return ['ru', 'uz', 'en'].includes(init) ? init : 'ru'
+  })
   const [data, setData] = useState(null) // { venue, sections, categories, items }
   const [loading, setLoading] = useState(true)
   const [sectionId, setSectionId] = useState(null)
