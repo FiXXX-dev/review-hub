@@ -846,7 +846,9 @@ function OwnersCard({ venue }) {
           <div key={r.id} className="feedback-item owners-row">
             <span className="feedback-text">
               {r.phone || r.telegram_chat_id}
-              <span className="owners-role">{r.role === 'owner' ? 'владелец' : 'персонал'}</span>
+              <span className="owners-role">
+                {r.role === 'owner' ? 'владелец' : r.role === 'waiter' ? 'официант' : 'персонал'}
+              </span>
             </span>
             <button type="button" className="btn-link danger" onClick={() => remove(r.id)}>
               Убрать
@@ -886,6 +888,7 @@ function OwnersCard({ venue }) {
           />
           <select value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="owner">владелец</option>
+            <option value="waiter">официант (приём заказов)</option>
             <option value="staff">персонал (только просмотр)</option>
           </select>
           <button type="submit" className="btn-link" disabled={busy || !chatId}>
