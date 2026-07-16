@@ -104,8 +104,8 @@ const L = {
   uz: {
     title: 'halo — biznes uchun aqlli NFC-teglar | Oʻzbekiston',
     h1: <>Bir teginish — va&nbsp;mehmoningiz hammasini oladi</>,
-    sub: 'Muassasalar uchun aqlli NFC-teg: Wi-Fi, menyu, sharhlar, taksi, xona xizmati. Mehmon telefonini tekizadi — hammasi bir soniyada ochiladi, ilovasiz.',
-    demo: 'Demoni ochish',
+    sub: 'Bizneslar uchun aqlli NFC-teg: Wi-Fi, menyu, sharhlar, taksi, xona xizmati. Mehmon telefonini tekizadi — hammasi bir soniyada ochiladi, ilovasiz.',
+    demo: 'Demoni sinab koʻring',
     write_tg: 'Telegramga yozish',
     tag_caption: 'Telefonni tekizing',
     tag_aria: 'halo teg nimani ochishini koʻrsatish',
@@ -133,12 +133,12 @@ const L = {
     how_kicker: 'Bu qanday ishlaydi',
     steps: [
       'Mehmon telefonini tegga tekizadi',
-      'Muassasangiz sahifasi ochiladi — ilovasiz',
+      'Biznesingiz sahifasi ochiladi — ilovasiz',
       'Wi-Fi, menyu, arizalar va sharhlar — hammasi bir joyda',
     ],
     who_kicker: 'Kim uchun',
     audience: 'Mehmonxonalar · Kafelar · Barbershoplar · Klinikalar · Avtoservislar',
-    contact_h2: 'Muassasangizda 10 daqiqada koʻrsatamiz',
+    contact_h2: 'Biznesingizda 10 daqiqada koʻrsatamiz',
     footer: 'halo · Toshkent · gethalo.uz',
   },
 }
