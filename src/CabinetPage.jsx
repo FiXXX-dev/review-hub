@@ -278,6 +278,17 @@ function ProfileSection({ token, venue, isOwner }) {
     setSaved(false)
   }
 
+  // картинки (лого/фон) сохраняем сразу — файл уже в Storage, отдельная
+  // кнопка «Сохранить» тут только путала: превью менялось, а страница нет.
+  async function persistField(k, v) {
+    setFull((f) => ({ ...f, [k]: v }))
+    try {
+      await api(`/venue/${venue.id}`, { method: 'PATCH', token, body: { [k]: v } })
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   async function uploadImage(kind, file) {
     if (!file) return
     const reader = new FileReader()
@@ -288,7 +299,7 @@ function ProfileSection({ token, venue, isOwner }) {
           token,
           body: { data_url: reader.result, kind },
         })
-        set(kind === 'bg' ? 'background_image_url' : 'logo_url', url)
+        await persistField(kind === 'bg' ? 'background_image_url' : 'logo_url', url)
       } catch (err) {
         setError(err.message)
       }
@@ -329,16 +340,21 @@ function ProfileSection({ token, venue, isOwner }) {
         label="Логотип"
         value={full.logo_url}
         onFile={(f) => uploadImage('logo', f)}
-        onClear={() => set('logo_url', '')}
+        onClear={() => persistField('logo_url', '')}
         disabled={!isOwner}
       />
       <ImageRow
         label="Фон страницы"
         value={full.background_image_url}
         onFile={(f) => uploadImage('bg', f)}
-        onClear={() => set('background_image_url', '')}
+        onClear={() => persistField('background_image_url', '')}
         disabled={!isOwner}
       />
+      {isOwner && (
+        <p className="admin-hint" style={{ marginTop: -4 }}>
+          Логотип и фон применяются сразу. Остальные поля — по кнопке «Сохранить».
+        </p>
+      )}
       {PROFILE_FIELDS.map((f) => (
         <label key={f.key} className="admin-field">
           <span>{f.label}</span>
