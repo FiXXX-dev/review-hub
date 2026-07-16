@@ -91,14 +91,59 @@ export const DICT = {
     phone_label: 'Телефон',
     powered: 'Работает на',
   },
+  uz: {
+    notfound_title: 'Muassasa topilmadi',
+    notfound_sub: 'Havolani tekshiring yoki QR-kodni qayta skanerlang.',
+    thanks: 'Rahmat!',
+    owner_got: 'Egasi xabaringizni oldi.',
+    share_rating: 'Rahmat! Bahoyingizni qoldiring:',
+    feedback_ph: 'Nima yoqmadi — ayting, tuzatamiz',
+    contact_ph: 'Telefon yoki ism (ixtiyoriy)',
+    send: 'Yuborish',
+    sending: 'Yuborilmoqda…',
+    network: 'Tarmoq',
+    password: 'Parol',
+    copy_pass: 'Parolni nusxalash',
+    copied: '✓ Nusxalandi',
+    your_name: 'Ismingiz',
+    phone_ph: 'Telefon',
+    service_ph: 'Xizmat (ixtiyoriy)',
+    appt_time_ph: 'Qulay vaqt, masalan: ertaga 15:00 dan keyin',
+    book: 'Yozilish',
+    request_sent: 'Ariza yuborildi!',
+    will_contact: "Tasdiqlash uchun siz bilan bog'lanishadi.",
+    room_number: 'Xona raqami',
+    room: 'Xona',
+    room_hint: "So'rov yuborish uchun xona raqamini kiriting",
+    request_accepted: 'Ariza qabul qilindi!',
+    coming: 'Tez orada boramiz.',
+    order_more: 'Yana buyurtma',
+    order: 'Buyurtma berish',
+    back_list: "← Ro'yxatga",
+    empty_services: "Xizmatlar ro'yxati hozircha bo'sh",
+    free: 'Bepul',
+    broken_ph: "Nima bo'lganini yozing (majburiy)",
+    comment_ph: 'Izoh (ixtiyoriy)',
+    svc_time_ph: 'Qaysi vaqtga (ixtiyoriy)',
+    where_to: 'Qayerga',
+    now: 'Hozir',
+    later: 'Vaqtga',
+    call_taxi: 'Taksi chaqirish',
+    reception: "Resepshn siz bilan bog'lanadi.",
+    address: 'Manzil',
+    phone_label: 'Telefon',
+    powered: 'Platforma:',
+  },
 }
+
+const LANGS = ['en', 'ru', 'uz']
 
 export function getInitialLang() {
   if (typeof window === 'undefined') return 'en'
   const p = new URLSearchParams(window.location.search).get('lang')
-  if (p === 'ru' || p === 'en') return p
+  if (LANGS.includes(p)) return p
   const saved = localStorage.getItem('halo-lang')
-  if (saved === 'ru' || saved === 'en') return saved
+  if (LANGS.includes(saved)) return saved
   return 'en'
 }
 
@@ -130,7 +175,7 @@ export function LangSwitch({ className = '' }) {
   const { lang, setLang } = useLang()
   return (
     <div className={`lang-switch ${className}`} role="group" aria-label="Language">
-      {['en', 'ru'].map((l) => (
+      {LANGS.map((l) => (
         <button
           key={l}
           type="button"
