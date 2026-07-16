@@ -47,6 +47,7 @@ export const DICT = {
     address: 'Address',
     phone_label: 'Phone',
     powered: 'Powered by',
+    my_bill: 'My bill',
   },
   ru: {
     notfound_title: 'Заведение не найдено',
@@ -90,6 +91,7 @@ export const DICT = {
     address: 'Адрес',
     phone_label: 'Телефон',
     powered: 'Работает на',
+    my_bill: 'Мой счёт',
   },
   uz: {
     notfound_title: 'Muassasa topilmadi',
@@ -133,6 +135,7 @@ export const DICT = {
     address: 'Manzil',
     phone_label: 'Telefon',
     powered: 'Platforma:',
+    my_bill: 'Mening hisobim',
   },
 }
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import {
   Sparkles, Bed, GlassWater, Clock, Wrench, Car, Coffee, Shirt, BellRing,
   Star, Wifi, MapPin, Phone, BookOpen, Calendar, Info, Send, Camera,
-  Scissors, Stethoscope, ShoppingBag, Wallet,
+  Scissors, Stethoscope, ShoppingBag, Wallet, Receipt,
 } from 'lucide-react'
 import { supabase } from './lib/supabase.js'
 import {
@@ -264,7 +264,17 @@ export default function VenuePage({ slug }) {
           {venue.welcome_text && <p className="welcome">{venue.welcome_text}</p>}
         </header>
 
-        <main className="actions">{rendered}</main>
+        <main className="actions">
+          {tableNo && (
+            <a
+              className="btn btn-secondary bill-link"
+              href={`${import.meta.env.BASE_URL}v/${venue.slug}/bill?table=${encodeURIComponent(tableNo)}`}
+            >
+              <Receipt size={20} strokeWidth={1.9} className="btn-icon" /> {t('my_bill')}
+            </a>
+          )}
+          {rendered}
+        </main>
 
         <footer className="footer">
           {venue.address && <div>{venue.address}</div>}

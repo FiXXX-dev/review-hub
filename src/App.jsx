@@ -6,6 +6,7 @@ import ServicesAdminPage from './ServicesAdminPage.jsx'
 import LandingPage from './LandingPage.jsx'
 import CabinetPage from './CabinetPage.jsx'
 import MenuPage from './MenuPage.jsx'
+import BillPage from './BillPage.jsx'
 import { LangProvider } from './lib/i18n.jsx'
 
 function getSlug() {
@@ -38,6 +39,12 @@ export default function App() {
         <MenuPage slug={menuMatch[1]} />
       </LangProvider>
     )
+  }
+
+  // /v/:slug/bill — гостевой счёт стола (read-only)
+  const billMatch = window.location.pathname.match(/\/v\/([\w-]+)\/bill\/?$/)
+  if (billMatch) {
+    return <BillPage slug={billMatch[1]} />
   }
 
   const slug = getSlug()
