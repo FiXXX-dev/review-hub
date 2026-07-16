@@ -14,7 +14,7 @@ const EDITABLE = new Set([
   'address', 'phone', 'enabled_blocks', 'block_links',
   'wifi_ssid', 'wifi_password', 'instagram_url', 'telegram_url', 'menu_url',
   'yandex_review_url', 'google_review_url', 'gis2_review_url',
-  'service_options', 'rating_platform_order', 'taxi_classes',
+  'service_options', 'rating_platform_order', 'taxi_classes', 'menu_languages',
 ])
 
 const b64u = (buf) => Buffer.from(buf).toString('base64url')
@@ -243,11 +243,11 @@ export function createCabinetRouter({ supabase, sendTelegram }) {
   }
   // белые списки полей на запись (venue_id проставляется из URL)
   const MENU_FIELDS = {
-    section: ['title_ru', 'title_uz', 'title_en', 'sort_order', 'is_active'],
-    category: ['section_id', 'title_ru', 'title_uz', 'title_en', 'sort_order', 'is_active'],
+    section: ['title_ru', 'title_uz', 'title_en', 'title_tr', 'sort_order', 'is_active'],
+    category: ['section_id', 'title_ru', 'title_uz', 'title_en', 'title_tr', 'sort_order', 'is_active'],
     item: [
-      'category_id', 'title_ru', 'title_uz', 'title_en',
-      'description_ru', 'description_uz', 'description_en',
+      'category_id', 'title_ru', 'title_uz', 'title_en', 'title_tr',
+      'description_ru', 'description_uz', 'description_en', 'description_tr',
       'price', 'weight_value', 'weight_unit', 'kbju', 'photo_url',
       'is_new', 'is_active', 'sort_order',
     ],
@@ -266,15 +266,17 @@ export function createCabinetRouter({ supabase, sendTelegram }) {
   router.get('/venue/:id/menu', auth, async (req, res) => {
     if (!(await loadRole(req.chatId, req.params.id))) return res.status(403).json({ error: 'forbidden' })
     const vid = req.params.id
-    const [sec, cat, items] = await Promise.all([
+    const [sec, cat, items, venue] = await Promise.all([
       supabase.from('menu_sections').select('*').eq('venue_id', vid).order('sort_order'),
       supabase.from('menu_categories').select('*').eq('venue_id', vid).order('sort_order'),
       supabase.from('menu_items').select('*').eq('venue_id', vid).order('sort_order'),
+      supabase.from('venues').select('menu_languages').eq('id', vid).maybeSingle(),
     ])
     res.json({
       sections: sec.data ?? [],
       categories: cat.data ?? [],
       items: items.data ?? [],
+      menu_languages: venue.data?.menu_languages ?? null,
     })
   })
 

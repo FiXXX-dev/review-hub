@@ -2,10 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Search, UtensilsCrossed, ArrowLeft } from 'lucide-react'
 import { supabase } from './lib/supabase.js'
 import { formatPrice } from './lib/blocks.js'
-import { pick, MENU_UI } from './lib/menu.js'
+import { pick, MENU_UI, venueLangs } from './lib/menu.js'
 import { getInitialLang } from './lib/i18n.jsx'
-
-const LANGS = ['ru', 'uz', 'en']
 
 export default function MenuPage({ slug }) {
   const [lang, setLang] = useState(() => (getInitialLang() === 'en' ? 'en' : 'ru'))
@@ -22,7 +20,7 @@ export default function MenuPage({ slug }) {
       const { data: venue } = await supabase
         .from('venues')
         .select(
-          'id, slug, name, logo_url, accent_color, text_color, background_image_url, menu_url'
+          'id, slug, name, logo_url, accent_color, text_color, background_image_url, menu_url, menu_languages'
         )
         .eq('slug', slug)
         .maybeSingle()
@@ -54,6 +52,13 @@ export default function MenuPage({ slug }) {
     }
   }, [slug])
 
+  const langs = data ? venueLangs(data.venue) : ['ru', 'uz', 'en']
+
+  // если текущий язык не входит в набор заведения — переключаемся на первый доступный
+  useEffect(() => {
+    if (data && !langs.includes(lang)) setLang(langs[0])
+  }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (data?.venue?.accent_color)
       document.documentElement.style.setProperty('--accent', data.venue.accent_color)
@@ -62,7 +67,7 @@ export default function MenuPage({ slug }) {
     if (data?.venue?.name) document.title = `${MENU_UI[lang].menu} · ${data.venue.name}`
   }, [data, lang])
 
-  const t = MENU_UI[lang]
+  const t = MENU_UI[lang] || MENU_UI.ru
 
   const view = useMemo(() => {
     if (!data) return null
@@ -116,13 +121,15 @@ export default function MenuPage({ slug }) {
           {venue.logo_url && <img className="menu-logo" src={venue.logo_url} alt="" />}
           <span>{venue.name}</span>
         </div>
-        <div className="menu-lang">
-          {LANGS.map((l) => (
-            <button key={l} className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>
-              {l.toUpperCase()}
-            </button>
-          ))}
-        </div>
+        {langs.length > 1 && (
+          <div className="menu-lang">
+            {langs.map((l) => (
+              <button key={l} className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="menu-body">
