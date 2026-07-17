@@ -275,8 +275,14 @@ function VenueEditor({ venue, presets, onBack }) {
       ? presetTypes
       : []
   const usesLegacyService = presetTypes.includes('service') || enabled.includes('service')
+  // Блоки, уместные для любой вертикали. Специфичные (врачи, мастера, каталог…)
+  // предлагаем только если они есть в пресете заведения или уже включены.
+  const UNIVERSAL_BLOCKS = ['rating', 'menu', 'wifi', 'instagram', 'telegram', 'contacts', 'phone', 'info']
+  const relevant = new Set([...UNIVERSAL_BLOCKS, ...presetTypes, ...enabled])
   const allTypes = [...presetTypes, ...Object.keys(BLOCK_DEFS).filter((t) => !presetTypes.includes(t))]
     .filter((t) => (t === 'service' ? usesLegacyService : t === 'services' ? !usesLegacyService : true))
+    // при выбранном пресете скрываем блоки чужих вертикалей
+    .filter((t) => !form.preset_key || relevant.has(t))
 
   function blockDef(type) {
     return { ...BLOCK_DEFS[type], ...(preset?.blocks ?? []).find((b) => b.type === type) }
