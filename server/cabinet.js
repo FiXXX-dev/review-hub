@@ -153,7 +153,7 @@ export function createCabinetRouter({ supabase, sendTelegram, broadcast }) {
     const ids = roles.map((r) => r.venue_id)
     const { data: venues } = await supabase
       .from('venues')
-      .select('id, name, slug, accent_color, logo_url')
+      .select('id, name, slug, accent_color, logo_url, preset_key')
       .in('id', ids)
     const roleById = Object.fromEntries(roles.map((r) => [r.venue_id, r.role]))
     res.json({ venues: (venues ?? []).map((v) => ({ ...v, role: roleById[v.id] })) })
