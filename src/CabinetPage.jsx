@@ -206,13 +206,18 @@ function CabinetShell({ token, onLogout }) {
     )
   }
 
+  // «Столы» и «Заказы» (ресторанный POS) — только для общепита; отелям,
+  // барбершопам, клиникам и т.д. они не нужны.
+  const isFoodVenue = venue.preset_key === 'restaurant'
   const tabs = [
     ['profile', 'Профиль'],
     ['blocks', 'Блоки'],
     ['menu', 'Меню'],
-    ['tables', 'Столы'],
-    ...(isOwner ? [['orders', 'Заказы']] : []),
+    ...(isFoodVenue ? [['tables', 'Столы']] : []),
+    ...(isFoodVenue && isOwner ? [['orders', 'Заказы']] : []),
   ]
+  // если активная вкладка недоступна для этого заведения — падаем на «Профиль»
+  const activeTab = tabs.some(([k]) => k === tab) ? tab : 'profile'
 
   return (
     <div className="page">
@@ -232,7 +237,7 @@ function CabinetShell({ token, onLogout }) {
           {tabs.map(([k, label]) => (
             <button
               key={k}
-              className={`cab-tab ${tab === k ? 'on' : ''}`}
+              className={`cab-tab ${activeTab === k ? 'on' : ''}`}
               onClick={() => setTab(k)}
             >
               {label}
@@ -240,11 +245,11 @@ function CabinetShell({ token, onLogout }) {
           ))}
         </div>
 
-        {tab === 'profile' && <ProfileSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
-        {tab === 'blocks' && <BlocksSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
-        {tab === 'menu' && <MenuSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
-        {tab === 'tables' && <TablesSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
-        {tab === 'orders' && isOwner && <OrdersSection key={venue.id} token={token} venue={venue} />}
+        {activeTab === 'profile' && <ProfileSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
+        {activeTab === 'blocks' && <BlocksSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
+        {activeTab === 'menu' && <MenuSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
+        {activeTab === 'tables' && <TablesSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
+        {activeTab === 'orders' && isOwner && <OrdersSection key={venue.id} token={token} venue={venue} />}
       </div>
     </div>
   )
