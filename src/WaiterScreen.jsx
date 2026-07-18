@@ -82,6 +82,8 @@ export default function WaiterScreen({ token, venue }) {
               <button key={n} className={`wt-tile ${o ? 'busy' : 'free'}`} onClick={() => openTable(n)}>
                 <span className="wt-num">Стол {n}</span>
                 <span className="wt-state">{o ? money(o.total) : 'свободен'}</span>
+                {o && o.payment_status === 'paid' && <span className="wt-pay paid">✓ оплачено</span>}
+                {o && o.payment_status === 'awaiting' && <span className="wt-pay await">💳 ждёт подтверждения</span>}
               </button>
             )
           })}
@@ -164,9 +166,26 @@ function OrderScreen({ token, venue, num, menu, onBack }) {
     setBusy(false)
   }
 
+  async function confirmPayment() {
+    if (!order || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      await api(`/venue/${venue.id}/orders/${order.id}/pay`, { method: 'POST', token })
+      await loadOrder()
+    } catch (e) {
+      setError(e.message)
+    }
+    setBusy(false)
+  }
+
   async function closeTable() {
     if (!order || busy) return
-    if (!window.confirm(`Закрыть стол ${num}? Счёт будет завершён.`)) return
+    const paid = order.payment_status === 'paid'
+    const msg = paid
+      ? `Закрыть стол ${num}? Счёт будет завершён.`
+      : `Оплата не подтверждена. Всё равно закрыть стол ${num}?`
+    if (!window.confirm(msg)) return
     setBusy(true)
     try {
       await api(`/venue/${venue.id}/orders/${order.id}/close`, { method: 'POST', token })
@@ -262,6 +281,18 @@ function OrderScreen({ token, venue, num, menu, onBack }) {
                     <span>Итого</span>
                     <span>{money(orderTotal)}</span>
                   </div>
+                  {order.payment_status === 'paid' ? (
+                    <p className="wt-pay-line paid">✓ Оплата подтверждена</p>
+                  ) : (
+                    <>
+                      {order.payment_status === 'awaiting' && (
+                        <p className="wt-pay-line await">Гость нажал «Оплатить онлайн» — проверьте поступление и подтвердите.</p>
+                      )}
+                      <button className="btn btn-primary wt-pay-btn" onClick={confirmPayment} disabled={busy}>
+                        Подтвердить оплату
+                      </button>
+                    </>
+                  )}
                 </>
               )}
               <div className="wt-bill-actions">

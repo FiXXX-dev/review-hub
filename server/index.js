@@ -60,20 +60,53 @@ app.get('/api/order', async (req, res) => {
     const slug = String(req.query.slug || '')
     const table = parseInt(req.query.table, 10)
     if (!slug || !Number.isInteger(table)) return res.status(400).json({ error: 'bad request' })
-    const { data: venue } = await supabase.from('venues').select('id, name, accent_color').eq('slug', slug).maybeSingle()
+    const { data: venue } = await supabase
+      .from('venues')
+      .select('id, name, accent_color, payment_enabled, payment_provider, payment_merchant_id, payment_custom_url')
+      .eq('slug', slug).maybeSingle()
     if (!venue) return res.status(404).json({ error: 'venue not found' })
-    const vpub = { id: venue.id, name: venue.name, accent_color: venue.accent_color }
+    // merchant_id/custom_url и так видны в платёжной ссылке — не секрет
+    const vpub = {
+      id: venue.id, name: venue.name, accent_color: venue.accent_color,
+      payment_enabled: !!venue.payment_enabled,
+      payment_provider: venue.payment_provider,
+      payment_merchant_id: venue.payment_merchant_id,
+      payment_custom_url: venue.payment_custom_url,
+    }
     const { data: order } = await supabase
-      .from('orders').select('id, created_at')
+      .from('orders').select('id, created_at, payment_status')
       .eq('venue_id', venue.id).eq('table_number', table).eq('status', 'open').maybeSingle()
     if (!order) return res.json({ order: null, venue: vpub })
     const { data: items } = await supabase
       .from('order_items').select('title_snapshot, price_snapshot, qty').eq('order_id', order.id).order('created_at')
     const list = items ?? []
     const total = list.reduce((s, i) => s + Number(i.price_snapshot) * i.qty, 0)
-    res.json({ order: { items: list, total, created_at: order.created_at }, venue: vpub })
+    res.json({
+      order: { id: order.id, items: list, total, created_at: order.created_at, payment_status: order.payment_status },
+      venue: vpub,
+    })
   } catch (err) {
     console.error('api/order error:', err)
+    res.status(500).json({ error: 'internal' })
+  }
+})
+
+// ── гость нажал «Оплатить онлайн» → ставим статус ожидания (не трогаем 'paid') ──
+app.post('/api/pay-intent', async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'not configured' })
+    const slug = String(req.body?.slug || '')
+    const table = parseInt(req.body?.table, 10)
+    if (!slug || !Number.isInteger(table)) return res.status(400).json({ error: 'bad request' })
+    const { data: venue } = await supabase.from('venues').select('id').eq('slug', slug).maybeSingle()
+    if (!venue) return res.status(404).json({ error: 'venue not found' })
+    await supabase
+      .from('orders')
+      .update({ payment_status: 'awaiting' })
+      .eq('venue_id', venue.id).eq('table_number', table).eq('status', 'open').eq('payment_status', 'none')
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('pay-intent error:', err)
     res.status(500).json({ error: 'internal' })
   }
 })

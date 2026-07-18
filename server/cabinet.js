@@ -15,6 +15,7 @@ const EDITABLE = new Set([
   'wifi_ssid', 'wifi_password', 'instagram_url', 'telegram_url', 'menu_url',
   'yandex_review_url', 'google_review_url', 'gis2_review_url',
   'service_options', 'rating_platform_order', 'taxi_classes', 'menu_languages',
+  'payment_enabled', 'payment_provider', 'payment_merchant_id', 'payment_custom_url',
 ])
 
 const b64u = (buf) => Buffer.from(buf).toString('base64url')
@@ -429,6 +430,18 @@ export function createCabinetRouter({ supabase, sendTelegram, broadcast }) {
       notifyVenue(req.params.id, `🍳 Стол ${num} — на кухню:\n${lines}\n\nДобавлено на ${money(added)} сум`)
     }
     res.json({ order: await loadOrder(order.id) })
+  })
+
+  // подтвердить оплату вручную (официант/владелец) — записываем кто и когда
+  router.post('/venue/:id/orders/:orderId/pay', auth, async (req, res) => {
+    const role = await loadRole(req.chatId, req.params.id)
+    if (role !== 'owner' && role !== 'waiter') return res.status(403).json({ error: 'forbidden' })
+    const { error } = await supabase
+      .from('orders')
+      .update({ payment_status: 'paid', payment_marked_by: req.chatId, payment_marked_at: new Date().toISOString() })
+      .eq('id', req.params.orderId).eq('venue_id', req.params.id).eq('status', 'open')
+    if (error) return res.status(400).json({ error: error.message })
+    res.json({ ok: true })
   })
 
   // закрыть счёт (после оплаты) — стол снова свободен
