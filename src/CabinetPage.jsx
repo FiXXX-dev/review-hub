@@ -7,7 +7,7 @@ import { api } from './lib/cabinetApi.js'
 import WaiterScreen from './WaiterScreen.jsx'
 import {
   buildPaymentUrl, PAYMENT_PROVIDERS, PAYMENT_HELP,
-  validatePayme, validateClick, validateUrl,
+  validatePayme, validateClick, validateUrl, extractPaymeId,
 } from './lib/paymentLinks.js'
 
 const TOKEN_KEY = 'halo-cabinet-token'
@@ -1340,7 +1340,7 @@ function PaymentSection({ token, venue }) {
   if (!full) return <div className="spinner" style={{ margin: '24px auto' }} />
 
   const account = () =>
-    provider === 'payme' ? merchantId.trim()
+    provider === 'payme' ? extractPaymeId(merchantId)
       : provider === 'click' ? `${clickService.trim()}:${clickMerchant.trim()}`
         : url.trim()
   const validate = () =>
@@ -1364,6 +1364,7 @@ function PaymentSection({ token, venue }) {
   async function toTest() {
     const err = validate()
     if (err) return setError(err)
+    if (provider === 'payme') setMerchantId(extractPaymeId(merchantId)) // подчистим поле
     setError('')
     setBusy(true)
     const patch = { payment_provider: provider }

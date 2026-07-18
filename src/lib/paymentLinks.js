@@ -74,19 +74,16 @@ export const PAYMENT_HELP = {
     'Войдите в кабинет мерчанта: business.payme.uz.',
     'Откройте раздел «Кассы» и выберите вашу кассу (или создайте новую для заведения).',
     'Скопируйте «ID кассы» — это 24 символа из цифр и латинских букв (a–f).',
-    '[SCREENSHOT: где в кабинете Payme находится ID кассы]',
   ],
   click: [
     'Войдите в кабинет мерчанта Click: merchant.click.uz.',
     'В настройках сервиса найдите «Service ID» и «Merchant ID» — это числа.',
     'Впишите оба значения в поля ниже.',
-    '[SCREENSHOT: где в кабинете Click находятся Service ID и Merchant ID]',
   ],
   uzum: [
     'Uzum формирует платёжную ссылку в кабинете мерчанта (или её выдаёт ваш менеджер Uzum).',
     'Скопируйте эту ссылку целиком и вставьте ниже.',
     'Если в ссылке есть место для суммы и номера заказа — впишите там {amount} и {order_id}, halo подставит их автоматически.',
-    '[SCREENSHOT: где в кабинете Uzum взять платёжную ссылку]',
   ],
   custom: [
     'Вставьте готовую платёжную ссылку вашего банка/агрегатора.',
@@ -95,9 +92,15 @@ export const PAYMENT_HELP = {
   ],
 }
 
+// Достаём ID кассы Payme, даже если вставили лишнее (m=..;ac..;a.. или ссылку).
+export function extractPaymeId(input) {
+  const m = String(input || '').match(/[a-f0-9]{24}/i)
+  return m ? m[0] : String(input || '').trim()
+}
+
 // ── валидация ввода (человеческим языком) ──
 export function validatePayme(id) {
-  const v = (id || '').trim()
+  const v = extractPaymeId(id)
   if (!v) return 'Введите ID кассы Payme.'
   if (!/^[a-f0-9]{24}$/i.test(v)) return 'ID кассы Payme — это 24 символа из цифр и латинских букв a–f. Похоже, скопировано не полностью.'
   return null
