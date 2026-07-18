@@ -36,6 +36,14 @@ export default function ServicesAdminPage({ slug }) {
   const [loading, setLoading] = useState(true)
   const [drafts, setDrafts] = useState({}) // id -> draft
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  function errMsg(err) {
+    const m = err?.message || ''
+    if (/title_en/i.test(m)) return 'В базе нет колонки title_en. Выполните миграцию 0011_service_title_en.sql в Supabase и повторите.'
+    if (/row-level security|permission|policy/i.test(m)) return 'Нет доступа на запись (RLS). Проверьте политики таблицы services.'
+    return m || 'Не удалось сохранить. Попробуйте ещё раз.'
+  }
 
   async function load() {
     setLoading(true)
@@ -82,16 +90,20 @@ export default function ServicesAdminPage({ slug }) {
     const draft = drafts[id]
     if (!draft?.title_ru.trim() || busy) return
     setBusy(true)
-    await supabase.from('services').update(draftToRow(draft)).eq('id', id)
+    setError('')
+    const { error: err } = await supabase.from('services').update(draftToRow(draft)).eq('id', id)
     setBusy(false)
+    if (err) return setError(errMsg(err)) // не перезагружаем — черновик сохраняется
     load()
   }
 
   async function removeRow(id) {
     if (!confirm('Удалить услугу?') || busy) return
     setBusy(true)
-    await supabase.from('services').delete().eq('id', id)
+    setError('')
+    const { error: err } = await supabase.from('services').delete().eq('id', id)
     setBusy(false)
+    if (err) return setError(errMsg(err))
     load()
   }
 
@@ -99,14 +111,17 @@ export default function ServicesAdminPage({ slug }) {
     const other = idx + dir
     if (other < 0 || other >= items.length || busy) return
     setBusy(true)
+    setError('')
     const a = items[idx]
     const b = items[other]
     // порядок задаётся sort_order — просто меняем значения местами
-    await Promise.all([
+    const res = await Promise.all([
       supabase.from('services').update({ sort_order: b.sort_order }).eq('id', a.id),
       supabase.from('services').update({ sort_order: a.sort_order }).eq('id', b.id),
     ])
     setBusy(false)
+    const err = res.find((r) => r.error)?.error
+    if (err) return setError(errMsg(err))
     load()
   }
 
@@ -114,14 +129,16 @@ export default function ServicesAdminPage({ slug }) {
     e.preventDefault()
     if (busy) return
     setBusy(true)
+    setError('')
     const maxOrder = items.reduce((m, s) => Math.max(m, s.sort_order), 0)
-    await supabase.from('services').insert({
+    const { error: err } = await supabase.from('services').insert({
       venue_id: venue.id,
       title_ru: 'Новая услуга',
       is_free: true,
       sort_order: maxOrder + 1,
     })
     setBusy(false)
+    if (err) return setError(errMsg(err))
     load()
   }
 
@@ -152,6 +169,7 @@ export default function ServicesAdminPage({ slug }) {
           Название, цена (пусто + галка «бесплатно» = бейдж «Бесплатно»), порядок стрелками.
           Изменения видны на странице сразу после «Сохранить».
         </p>
+        {error && <p className="admin-error">{error}</p>}
         <div className="card">
           {items.map((s, idx) => {
             const d = drafts[s.id]
