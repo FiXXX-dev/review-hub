@@ -2907,3 +2907,55 @@ body {
 .bill-empty { text-align: center; color: #6b7280; padding: 24px 0; }
 .bill-call { width: 100%; margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .bill-link { justify-content: center; }
+
+/* ─── Оплата: мастер подключения ─── */
+.pay-status {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: 12px; font-weight: 700; font-size: 14px;
+  background: #f1f3f6; color: #6b7280; margin-bottom: 12px;
+}
+.pay-status.on { background: #e7f7ec; color: #15803d; }
+.pay-status-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.pay-step-label { font-weight: 800; font-size: 15px; margin: 6px 0 12px; }
+.pay-providers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.pay-provider {
+  display: flex; align-items: center; gap: 10px;
+  border: 2px solid var(--line, #e6e8ec); background: #fff; border-radius: 14px;
+  padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; color: var(--ink, #1a1d21);
+}
+.pay-provider.on { border-color: var(--pv, #2563eb); }
+.pay-provider-mark {
+  width: 34px; height: 34px; border-radius: 9px; flex: 0 0 auto;
+  background: var(--pv, #2563eb); color: #fff; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.pay-form-row { display: flex; gap: 10px; }
+.pay-form-row .admin-field { flex: 1; min-width: 0; }
+.pay-form-row .admin-field input { width: 100%; box-sizing: border-box; }
+.pay-help { margin: 8px 0 4px; padding-left: 20px; font-size: 13px; color: #5b6b7d; line-height: 1.5; }
+.pay-help li { margin-bottom: 5px; }
+.pay-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; gap: 12px; }
+.pay-confirm { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.pay-confirm-btns { display: flex; gap: 10px; margin-left: auto; }
+.pay-confirm-btns .btn-link {
+  border: 1px solid var(--line, #e6e8ec); border-radius: 10px; padding: 6px 18px; font-weight: 700;
+}
+.pay-confirm-btns .btn-link.on { background: var(--accent, #2563eb); border-color: var(--accent, #2563eb); color: #fff; }
+.pay-ok { color: #15803d; font-weight: 600; margin-top: 14px; }
+.pay-tips { margin-top: 14px; font-size: 14px; color: #5b6b7d; }
+.pay-tips ul { padding-left: 18px; margin: 6px 0; }
+.pay-tips li { margin-bottom: 4px; }
+
+/* статусы оплаты у официанта */
+.wt-pay { font-size: 12px; font-weight: 700; }
+.wt-tile .wt-pay { color: #fff; opacity: 0.95; }
+.wt-pay-line { font-size: 14px; font-weight: 600; margin: 10px 0 0; }
+.wt-pay-line.paid { color: #15803d; }
+.wt-pay-line.await { color: #b45309; }
+.wt-pay-btn { width: 100%; margin-top: 12px; }
+
+/* оплата на гостевом счёте */
+.bill-pay { width: 100%; margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.bill-await { margin-top: 14px; text-align: center; }
+.bill-await p:first-child { font-weight: 700; color: #b45309; }
+.bill-pay-line { margin-top: 14px; text-align: center; font-weight: 700; color: #15803d; }

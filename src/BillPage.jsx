@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, BellRing, RefreshCw } from 'lucide-react'
+import { ArrowLeft, BellRing, RefreshCw, CreditCard } from 'lucide-react'
 import { formatPrice } from './lib/blocks.js'
+import { buildPaymentUrl } from './lib/paymentLinks.js'
 
 // Гостевой счёт (read-only): тот же заказ, что вбил официант.
 // Гость видит сумму заранее, но заказывает через официанта.
@@ -10,6 +11,7 @@ export default function BillPage({ slug }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [called, setCalled] = useState(false)
+  const [awaiting, setAwaiting] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -27,6 +29,30 @@ export default function BillPage({ slug }) {
   useEffect(() => {
     load()
   }, [load])
+
+  function payOnline() {
+    const v = data?.venue
+    const order = data?.order
+    if (!v?.payment_enabled || !order) return
+    const account =
+      v.payment_provider === 'payme' || v.payment_provider === 'click'
+        ? v.payment_merchant_id
+        : v.payment_custom_url
+    const link = buildPaymentUrl(v.payment_provider, account, {
+      amount: order.total,
+      orderId: order.id,
+      returnUrl: window.location.href,
+    })
+    if (!link) return
+    // ставим статус ожидания (подтверждение оплаты — ручное, официантом)
+    fetch('/api/pay-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, table }),
+    }).catch(() => {})
+    setAwaiting(true)
+    window.open(link, '_blank', 'noopener')
+  }
 
   async function callWaiter() {
     if (!data?.venue?.id || called) return
@@ -86,11 +112,31 @@ export default function BillPage({ slug }) {
               <span>Итого</span>
               <span>{money(order.total)}</span>
             </div>
-            <p className="bill-note">Заказ принимает официант. Оплата — на месте.</p>
+
+            {(() => {
+              const v = data.venue || {}
+              const paid = order.payment_status === 'paid'
+              const isAwaiting = awaiting || order.payment_status === 'awaiting'
+              if (paid) return <p className="bill-pay-line paid">✓ Оплата подтверждена</p>
+              if (v.payment_enabled && isAwaiting)
+                return (
+                  <div className="bill-await">
+                    <p>Ожидаем подтверждение оплаты.</p>
+                    <p className="bill-note">Покажите этот экран официанту — он подтвердит поступление.</p>
+                  </div>
+                )
+              if (v.payment_enabled)
+                return (
+                  <button className="btn btn-primary bill-pay" onClick={payOnline}>
+                    <CreditCard size={18} /> Оплатить онлайн
+                  </button>
+                )
+              return <p className="bill-note">Заказ принимает официант. Оплата — на месте.</p>
+            })()}
           </div>
         )}
 
-        <button className="btn btn-primary bill-call" onClick={callWaiter} disabled={called}>
+        <button className="btn btn-secondary bill-call" onClick={callWaiter} disabled={called}>
           <BellRing size={18} /> {called ? 'Официант уже идёт' : 'Позвать официанта'}
         </button>
       </div>

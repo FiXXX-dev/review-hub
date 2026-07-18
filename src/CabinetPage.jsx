@@ -5,6 +5,10 @@ import { BLOCK_DEFS, formatPrice } from './lib/blocks.js'
 import { pick, venueLangs, MENU_LANGS, LANG_NAMES } from './lib/menu.js'
 import { api } from './lib/cabinetApi.js'
 import WaiterScreen from './WaiterScreen.jsx'
+import {
+  buildPaymentUrl, PAYMENT_PROVIDERS, PAYMENT_HELP,
+  validatePayme, validateClick, validateUrl,
+} from './lib/paymentLinks.js'
 
 const TOKEN_KEY = 'halo-cabinet-token'
 
@@ -214,7 +218,7 @@ function CabinetShell({ token, onLogout }) {
     ['blocks', 'Блоки'],
     ['menu', 'Меню'],
     ...(isFoodVenue ? [['tables', 'Столы']] : []),
-    ...(isFoodVenue && isOwner ? [['orders', 'Заказы']] : []),
+    ...(isFoodVenue && isOwner ? [['orders', 'Заказы'], ['payment', 'Оплата']] : []),
   ]
   // если активная вкладка недоступна для этого заведения — падаем на «Профиль»
   const activeTab = tabs.some(([k]) => k === tab) ? tab : 'profile'
@@ -250,6 +254,7 @@ function CabinetShell({ token, onLogout }) {
         {activeTab === 'menu' && <MenuSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
         {activeTab === 'tables' && <TablesSection key={venue.id} token={token} venue={venue} isOwner={isOwner} />}
         {activeTab === 'orders' && isOwner && <OrdersSection key={venue.id} token={token} venue={venue} />}
+        {activeTab === 'payment' && isOwner && <PaymentSection key={venue.id} token={token} venue={venue} />}
       </div>
     </div>
   )
@@ -1293,6 +1298,228 @@ function OrdersSection({ token, venue }) {
             <span className="ord-row-sum">{fmt(o.total)}</span>
           </div>
         ))
+      )}
+    </div>
+  )
+}
+
+/* ─── Оплата: пошаговый мастер подключения платёжного шлюза ─── */
+function PaymentSection({ token, venue }) {
+  const [full, setFull] = useState(null)
+  const [step, setStep] = useState(1)
+  const [provider, setProvider] = useState(null)
+  const [merchantId, setMerchantId] = useState('') // payme
+  const [clickService, setClickService] = useState('') // click
+  const [clickMerchant, setClickMerchant] = useState('')
+  const [url, setUrl] = useState('') // uzum/custom
+  const [showHelp, setShowHelp] = useState(false)
+  const [error, setError] = useState('')
+  const [testOk, setTestOk] = useState(null) // null | true | false
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api(`/venue/${venue.id}`, { token }).then((r) => {
+      const v = r.venue
+      setFull(v)
+      if (v.payment_provider) {
+        setProvider(v.payment_provider)
+        if (v.payment_provider === 'click') {
+          const [s, m] = String(v.payment_merchant_id || '').split(':')
+          setClickService(s || '')
+          setClickMerchant(m || '')
+        } else if (v.payment_provider === 'payme') {
+          setMerchantId(v.payment_merchant_id || '')
+        } else {
+          setUrl(v.payment_custom_url || '')
+        }
+        setStep(v.payment_enabled ? 3 : 2)
+      }
+    })
+  }, [token, venue.id])
+
+  if (!full) return <div className="spinner" style={{ margin: '24px auto' }} />
+
+  const account = () =>
+    provider === 'payme' ? merchantId.trim()
+      : provider === 'click' ? `${clickService.trim()}:${clickMerchant.trim()}`
+        : url.trim()
+  const validate = () =>
+    provider === 'payme' ? validatePayme(merchantId)
+      : provider === 'click' ? validateClick(clickService, clickMerchant)
+        : validateUrl(url)
+
+  async function persist(patch) {
+    await api(`/venue/${venue.id}`, { method: 'PATCH', token, body: patch })
+    setFull((f) => ({ ...f, ...patch }))
+  }
+
+  function pickProvider(p) {
+    setProvider(p)
+    setError('')
+    setTestOk(null)
+    setShowHelp(false)
+    setStep(2)
+  }
+
+  async function toTest() {
+    const err = validate()
+    if (err) return setError(err)
+    setError('')
+    setBusy(true)
+    const patch = { payment_provider: provider }
+    if (provider === 'payme' || provider === 'click') {
+      patch.payment_merchant_id = account()
+      patch.payment_custom_url = null
+    } else {
+      patch.payment_custom_url = account()
+      patch.payment_merchant_id = null
+    }
+    try {
+      await persist(patch)
+      setTestOk(null)
+      setStep(3)
+    } catch (e) {
+      setError(e.message)
+    }
+    setBusy(false)
+  }
+
+  function openTest() {
+    const link = buildPaymentUrl(provider, account(), { amount: 1000, orderId: 'test-halo' })
+    if (!link) return setError('Не удалось собрать ссылку — проверьте реквизиты.')
+    window.open(link, '_blank', 'noopener')
+  }
+
+  async function confirmWorks(ok) {
+    setTestOk(ok)
+    if (ok) await persist({ payment_enabled: true })
+  }
+
+  async function disable() {
+    setBusy(true)
+    await persist({ payment_enabled: false })
+    setBusy(false)
+    setStep(1)
+  }
+
+  const connected = full.payment_enabled
+
+  return (
+    <div className="card admin-form pay-wizard">
+      <div className={`pay-status ${connected ? 'on' : ''}`}>
+        <span className="pay-status-dot" />
+        {connected ? 'Оплата подключена' : 'Оплата не подключена'}
+        {connected && (
+          <button className="btn-link" style={{ marginLeft: 'auto' }} onClick={() => setStep(1)}>
+            изменить
+          </button>
+        )}
+      </div>
+
+      <p className="admin-hint">
+        Гость платит напрямую вашему банку — halo деньги не хранит и не обрабатывает. Подтверждение
+        оплаты официант ставит вручную.
+      </p>
+
+      {step === 1 && (
+        <>
+          <div className="pay-step-label">Шаг 1. Выберите платёжную систему</div>
+          <div className="pay-providers">
+            {PAYMENT_PROVIDERS.map((p) => (
+              <button
+                key={p.key}
+                className={`pay-provider ${provider === p.key ? 'on' : ''}`}
+                style={{ '--pv': p.color }}
+                onClick={() => pickProvider(p.key)}
+              >
+                <span className="pay-provider-mark">{p.name[0]}</span>
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          <div className="pay-step-label">Шаг 2. Реквизиты</div>
+          {provider === 'payme' && (
+            <label className="admin-field">
+              <span>Merchant ID (ID кассы Payme)</span>
+              <input value={merchantId} onChange={(e) => setMerchantId(e.target.value)} placeholder="587f72c72cac0d162c722ae2" />
+            </label>
+          )}
+          {provider === 'click' && (
+            <div className="pay-form-row">
+              <label className="admin-field">
+                <span>Service ID</span>
+                <input value={clickService} onChange={(e) => setClickService(e.target.value)} placeholder="12345" />
+              </label>
+              <label className="admin-field">
+                <span>Merchant ID</span>
+                <input value={clickMerchant} onChange={(e) => setClickMerchant(e.target.value)} placeholder="6789" />
+              </label>
+            </div>
+          )}
+          {(provider === 'uzum' || provider === 'custom') && (
+            <label className="admin-field">
+              <span>Платёжная ссылка</span>
+              <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…  (можно с {amount} и {order_id})" />
+            </label>
+          )}
+
+          <button className="btn-link" onClick={() => setShowHelp((s) => !s)}>
+            {showHelp ? 'Скрыть' : 'Где взять?'}
+          </button>
+          {showHelp && (
+            <ol className="pay-help">
+              {(PAYMENT_HELP[provider] || []).map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ol>
+          )}
+
+          {error && <p className="admin-error">{error}</p>}
+          <div className="pay-actions">
+            <button className="btn-link" onClick={() => setStep(1)}>← Назад</button>
+            <button className="btn btn-primary" onClick={toTest} disabled={busy}>Далее</button>
+          </div>
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          <div className="pay-step-label">Шаг 3. Проверка</div>
+          <p className="admin-hint">Откроем вашу платёжную страницу на 1 000 сум. Оплачивать не нужно — просто проверьте, что страница банка открывается и сумма верная.</p>
+          <button className="btn btn-secondary" onClick={openTest}>Проверить оплату на 1 000 сум</button>
+
+          <div className="pay-confirm">
+            <span>Всё открылось корректно?</span>
+            <div className="pay-confirm-btns">
+              <button className={`btn-link ${testOk === true ? 'on' : ''}`} onClick={() => confirmWorks(true)}>Да</button>
+              <button className={`btn-link ${testOk === false ? 'on' : ''}`} onClick={() => confirmWorks(false)}>Нет</button>
+            </div>
+          </div>
+
+          {testOk === true && <p className="pay-ok">✓ Оплата подключена. Гости увидят кнопку «Оплатить онлайн» в своём счёте.</p>}
+          {testOk === false && (
+            <div className="pay-tips">
+              <p>Что чаще всего неверно:</p>
+              <ul>
+                {provider === 'payme' && <li>ID кассы скопирован не полностью (нужно 24 символа) или взят из тестовой кассы.</li>}
+                {provider === 'click' && <li>Перепутаны местами Service ID и Merchant ID, либо сервис в Click ещё не активирован.</li>}
+                {(provider === 'uzum' || provider === 'custom') && <li>Ссылка скопирована не целиком или без https://. Проверьте {'{amount}'} и {'{order_id}'}.</li>}
+                <li>Реквизиты от другого заведения/кассы.</li>
+              </ul>
+              <button className="btn-link" onClick={() => setStep(2)}>← Исправить реквизиты</button>
+            </div>
+          )}
+
+          <div className="pay-actions" style={{ marginTop: 14 }}>
+            <button className="btn-link" onClick={() => setStep(2)}>← Реквизиты</button>
+            {connected && <button className="btn-link danger" onClick={disable} disabled={busy}>Отключить оплату</button>}
+          </div>
+        </>
       )}
     </div>
   )
