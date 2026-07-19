@@ -15,6 +15,7 @@ import {
   serviceTitle,
 } from './lib/blocks.js'
 import { useLang, useT, LangSwitch } from './lib/i18n.jsx'
+import { useTable } from './lib/table.jsx'
 import { HaloIcon } from './lib/logo.jsx'
 import { InstagramIcon } from './lib/brand-icons.jsx'
 
@@ -98,9 +99,10 @@ function resolveAssetUrl(u) {
   return u.startsWith('http') || u.startsWith('/') ? u : import.meta.env.BASE_URL + u
 }
 
-export default function VenuePage({ slug }) {
+export default function VenuePage({ slug, table }) {
   const { lang } = useLang()
   const t = useT()
+  const { billUrl } = useTable()
   const [venue, setVenue] = useState(null)
   const [loading, setLoading] = useState(true)
   const [bgLoaded, setBgLoaded] = useState(false)
@@ -110,9 +112,9 @@ export default function VenuePage({ slug }) {
   const [room, setRoom] = useState(
     () => new URLSearchParams(window.location.search).get('room')?.trim().slice(0, 20) || ''
   )
-  // ?table=7 — номер стола (QR на столе кафе), уходит во все заявки/оценки
-  const tableNo =
-    new URLSearchParams(window.location.search).get('table')?.trim().slice(0, 20) || null
+  // номер стола приходит из пути /v/:slug/t/:table (старые ?table=
+  // редиректятся в App), уходит во все заявки/оценки
+  const tableNo = table?.trim().slice(0, 20) || null
 
   const bgUrl = resolveAssetUrl(venue?.background_image_url)
 
@@ -265,11 +267,8 @@ export default function VenuePage({ slug }) {
         </header>
 
         <main className="actions">
-          {tableNo && (
-            <a
-              className="btn btn-secondary bill-link"
-              href={`${import.meta.env.BASE_URL}v/${venue.slug}/bill?table=${encodeURIComponent(tableNo)}`}
-            >
+          {tableNo && billUrl && (
+            <a className="btn btn-secondary bill-link" href={billUrl}>
               <Receipt size={20} strokeWidth={1.9} className="btn-icon" /> {t('my_bill')}
             </a>
           )}
@@ -331,15 +330,7 @@ function renderBlock(block, venue, room, setRoom, tableNo) {
     case 'menu':
       // всегда ведём на внутреннюю страницу меню; она сама уводит на
       // menu_url (fallback), если структурированных позиций ещё нет
-      return (
-        <a
-          key={type}
-          className="btn btn-secondary"
-          href={`${import.meta.env.BASE_URL}v/${venue.slug}/menu`}
-        >
-          <BlockIcon type={block.type} /> {block.label}
-        </a>
-      )
+      return <MenuBlockLink key={type} block={block} />
     default: {
       // универсальный link-блок: иконка + подпись + url
       const url = blockUrl(venue, type)
@@ -350,6 +341,16 @@ function renderBlock(block, venue, room, setRoom, tableNo) {
       ) : null
     }
   }
+}
+
+// Ссылка на меню — через TableContext, чтобы стол не терялся при переходе
+function MenuBlockLink({ block }) {
+  const { menuUrl } = useTable()
+  return (
+    <a className="btn btn-secondary" href={menuUrl}>
+      <BlockIcon type={block.type} /> {block.label}
+    </a>
+  )
 }
 
 /* ─── Оценка (ядро продукта) ─── */
