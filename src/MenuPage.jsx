@@ -4,8 +4,10 @@ import { supabase } from './lib/supabase.js'
 import { formatPrice } from './lib/blocks.js'
 import { pick, MENU_UI, venueLangs } from './lib/menu.js'
 import { getInitialLang } from './lib/i18n.jsx'
+import { useTable } from './lib/table.jsx'
 
 export default function MenuPage({ slug }) {
+  const { venueUrl } = useTable() // назад — с сохранением стола
   const [lang, setLang] = useState(() => {
     const init = getInitialLang()
     return ['ru', 'uz', 'en'].includes(init) ? init : 'ru'
@@ -118,7 +120,7 @@ export default function MenuPage({ slug }) {
   return (
     <div className="menu-page">
       <header className="menu-head">
-        <a className="menu-back" href={`${import.meta.env.BASE_URL}v/${venue.slug}`} aria-label="Назад">
+        <a className="menu-back" href={venueUrl} aria-label="Назад">
           <ArrowLeft size={20} />
         </a>
         <div className="menu-head-title">

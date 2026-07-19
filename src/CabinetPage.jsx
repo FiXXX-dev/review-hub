@@ -563,7 +563,8 @@ function TablesSection({ token, venue, isOwner }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const base = `${window.location.origin}${import.meta.env.BASE_URL}v/${venue.slug}`
+  // канонический адрес стола: /v/:slug/t/:N (старые ?table= редиректятся)
+  const base = `${window.location.origin}${import.meta.env.BASE_URL}v/${venue.slug}/t/`
 
   const load = useCallback(() => {
     api(`/venue/${venue.id}/tables`, { token }).then((r) => setTables(r.tables))
@@ -600,8 +601,8 @@ function TablesSection({ token, venue, isOwner }) {
     const items = await Promise.all(
       (tables ?? []).map(async (t) => ({
         n: t.number,
-        url: `${base}?table=${t.number}`,
-        img: await QRCode.toDataURL(`${base}?table=${t.number}`, { width: 320, margin: 1 }),
+        url: `${base}${t.number}`,
+        img: await QRCode.toDataURL(`${base}${t.number}`, { width: 320, margin: 1 }),
       }))
     )
     const cards = items
@@ -675,7 +676,7 @@ function TablesSection({ token, venue, isOwner }) {
 function TableQR({ base, table, canRemove, onRemove }) {
   const [img, setImg] = useState('')
   useEffect(() => {
-    QRCode.toDataURL(`${base}?table=${table.number}`, { width: 240, margin: 1 }).then(setImg)
+    QRCode.toDataURL(`${base}${table.number}`, { width: 240, margin: 1 }).then(setImg)
   }, [base, table.number])
   return (
     <div className="table-qr">

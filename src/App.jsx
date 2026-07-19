@@ -7,49 +7,118 @@ import LandingPage from './LandingPage.jsx'
 import CabinetPage from './CabinetPage.jsx'
 import MenuPage from './MenuPage.jsx'
 import BillPage from './BillPage.jsx'
+import NoTableScreen from './NoTableScreen.jsx'
 import { LangProvider } from './lib/i18n.jsx'
+import { TableProvider, loadTable, venuePath } from './lib/table.jsx'
 
-function getSlug() {
-  // не привязываемся к началу пути: на GitHub Pages сайт живёт под /review-hub/
-  const match = window.location.pathname.match(/\/v\/([\w-]+)\/?$/)
-  return match ? match[1] : null
+// клиентский редирект (для GH Pages/preview; на Railway тот же кейс
+// перехватывает express настоящим 301 ещё до загрузки SPA)
+function Redirect({ to }) {
+  window.location.replace(to)
+  return (
+    <div className="page center">
+      <div className="spinner" />
+    </div>
+  )
+}
+
+// query-строка без table — remainder переносим на канонический URL (?room, ?lang…)
+function restQuery() {
+  const p = new URLSearchParams(window.location.search)
+  p.delete('table')
+  const s = p.toString()
+  return s ? `?${s}` : ''
 }
 
 export default function App() {
-  const roomsMatch = window.location.pathname.match(/\/admin\/rooms\/([\w-]+)\/?$/)
+  const path = window.location.pathname
+  const qTable =
+    new URLSearchParams(window.location.search).get('table')?.trim().slice(0, 20) || null
+
+  const roomsMatch = path.match(/\/admin\/rooms\/([\w-]+)\/?$/)
   if (roomsMatch) {
     return <RoomLinksPage slug={roomsMatch[1]} />
   }
-  const servicesMatch = window.location.pathname.match(/\/admin\/services\/([\w-]+)\/?$/)
+  const servicesMatch = path.match(/\/admin\/services\/([\w-]+)\/?$/)
   if (servicesMatch) {
     return <ServicesAdminPage slug={servicesMatch[1]} />
   }
-  if (/\/admin\/?$/.test(window.location.pathname)) {
+  if (/\/admin\/?$/.test(path)) {
     return <AdminPage />
   }
-  if (/\/cabinet\/?$/.test(window.location.pathname)) {
+  if (/\/cabinet\/?$/.test(path)) {
     return <CabinetPage />
   }
 
-  // /v/:slug/menu — публичная страница меню
-  const menuMatch = window.location.pathname.match(/\/v\/([\w-]+)\/menu\/?$/)
-  if (menuMatch) {
+  // ── канонические роуты стола: /v/:slug/t/:table[/menu|/bill] ──
+  const tMatch = path.match(/\/v\/([\w-]+)\/t\/([\w.-]+)(\/menu|\/bill)?\/?$/)
+  if (tMatch) {
+    const [, slug, table, sub] = tMatch
+    const page =
+      sub === '/menu' ? (
+        <MenuPage slug={slug} />
+      ) : sub === '/bill' ? (
+        <BillPage slug={slug} table={table} />
+      ) : (
+        <VenuePage slug={slug} table={table} />
+      )
     return (
       <LangProvider>
-        <MenuPage slug={menuMatch[1]} />
+        <TableProvider slug={slug} table={table}>
+          {page}
+        </TableProvider>
       </LangProvider>
     )
   }
 
-  // /v/:slug/bill — гостевой счёт стола (read-only)
-  const billMatch = window.location.pathname.match(/\/v\/([\w-]+)\/bill\/?$/)
+  // ── старые ссылки (?table=N — печатные QR) и роуты без стола ──
+  const billMatch = path.match(/\/v\/([\w-]+)\/bill\/?$/)
   if (billMatch) {
-    return <BillPage slug={billMatch[1]} />
+    const slug = billMatch[1]
+    const t = qTable || loadTable(slug)
+    if (t) return <Redirect to={venuePath(slug, t, '/bill') + restQuery()} />
+    // стола нет нигде — счёт недоступен, просим отсканировать табличку
+    return (
+      <LangProvider>
+        <NoTableScreen />
+      </LangProvider>
+    )
   }
 
-  const slug = getSlug()
+  const menuMatch = path.match(/\/v\/([\w-]+)\/menu\/?$/)
+  if (menuMatch) {
+    const slug = menuMatch[1]
+    const t = qTable || loadTable(slug)
+    if (t) return <Redirect to={venuePath(slug, t, '/menu') + restQuery()} />
+    // общее меню без стола — легально (ссылка из блока «Меню» у любых вертикалей)
+    return (
+      <LangProvider>
+        <TableProvider slug={slug} table={null}>
+          <MenuPage slug={slug} />
+        </TableProvider>
+      </LangProvider>
+    )
+  }
 
-  // страница заведения — только /v/:slug («не найдено» показывает она сама,
-  // если slug не существует); всё остальное, включая корень, — лендинг halo
-  return <LangProvider>{slug ? <VenuePage slug={slug} /> : <LandingPage />}</LangProvider>
+  const slugMatch = path.match(/\/v\/([\w-]+)\/?$/)
+  if (slugMatch) {
+    const slug = slugMatch[1]
+    const t = qTable || loadTable(slug)
+    if (t) return <Redirect to={venuePath(slug, t) + restQuery()} />
+    // страница заведения без стола — легальна (отели/салоны, общий QR у входа)
+    return (
+      <LangProvider>
+        <TableProvider slug={slug} table={null}>
+          <VenuePage slug={slug} />
+        </TableProvider>
+      </LangProvider>
+    )
+  }
+
+  // всё остальное, включая корень, — лендинг halo
+  return (
+    <LangProvider>
+      <LandingPage />
+    </LangProvider>
+  )
 }

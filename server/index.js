@@ -248,9 +248,22 @@ app.post('/api/notify', async (req, res) => {
   }
 })
 
+// Старые ссылки с ?table= (печатные QR) → канонический путь /v/:slug/t/:N.
+// Настоящий 301, чтобы поисковики/мессенджеры переклеили URL; в SPA есть
+// такой же клиентский фолбэк для хостингов без express.
+app.get(['/v/:slug', '/v/:slug/bill', '/v/:slug/menu'], (req, res, next) => {
+  const t = String(req.query.table || '').trim().slice(0, 20)
+  if (!t) return next()
+  const suffix = req.path.endsWith('/bill') ? '/bill' : req.path.endsWith('/menu') ? '/menu' : ''
+  const rest = new URLSearchParams(req.query)
+  rest.delete('table')
+  const qs = rest.toString()
+  res.redirect(301, `/v/${req.params.slug}/t/${encodeURIComponent(t)}${suffix}${qs ? `?${qs}` : ''}`)
+})
+
 app.use(express.static(distDir))
 
-// SPA fallback: /v/:slug и всё остальное отдаёт index.html
+// SPA fallback: /v/:slug (включая /t/:table/...) и всё остальное отдаёт index.html
 app.get('*', (_req, res) => {
   res.sendFile(path.join(distDir, 'index.html'))
 })

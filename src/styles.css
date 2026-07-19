@@ -2992,3 +2992,16 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .btn-big::after { animation: none; display: none; }
 }
+
+/* заглушка «приложите телефон к табличке» (счёт без стола) */
+.notable-icon {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 16px;
+  border-radius: 22px;
+  background: var(--bg, #eef1f5);
+  color: var(--accent, #2563eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

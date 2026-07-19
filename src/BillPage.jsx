@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, BellRing, RefreshCw, CreditCard } from 'lucide-react'
 import { formatPrice } from './lib/blocks.js'
 import { buildPaymentUrl } from './lib/paymentLinks.js'
+import { useTable } from './lib/table.jsx'
 
 // Гостевой счёт (read-only): тот же заказ, что вбил официант.
 // Гость видит сумму заранее, но заказывает через официанта.
-export default function BillPage({ slug }) {
-  const table = new URLSearchParams(window.location.search).get('table') || ''
+// Стол приходит из пути /v/:slug/t/:table/bill (без стола App показывает заглушку).
+export default function BillPage({ slug, table }) {
+  const { venueUrl } = useTable()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -88,7 +90,7 @@ export default function BillPage({ slug }) {
   return (
     <div className="bill-page">
       <header className="bill-head">
-        <a className="bill-back" href={`${import.meta.env.BASE_URL}v/${slug}?table=${encodeURIComponent(table)}`} aria-label="Назад">
+        <a className="bill-back" href={venueUrl} aria-label="Назад">
           <ArrowLeft size={20} />
         </a>
         <span className="bill-title">{data.venue?.name} · Стол {table}</span>
